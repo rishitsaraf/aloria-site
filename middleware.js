@@ -1,10 +1,10 @@
 /* ALORIA — edge middleware: protects the hub server-side.
    Nothing under /hub, /data or /assets is served without the auth cookie.
 
-   This file must hold the logic AND the `config` literal outright. Vercel reads
-   the matcher statically at build time, so re-exporting config from another
-   module silently drops it and runs the middleware on every route — which
-   redirects "/" to "/" forever and makes /api/auth unreachable. */
+   This file must hold the logic AND the `config` literal outright. Re-exporting
+   config from another module silently drops the matcher and runs the middleware
+   on every route — which redirects "/" to "/" forever and makes /api/auth
+   unreachable. Keep the matcher a literal here. */
 
 export const config = {
   matcher: ["/hub", "/hub/(.*)", "/data/(.*)", "/assets/(.*)"],

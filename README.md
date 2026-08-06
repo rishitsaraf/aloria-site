@@ -11,9 +11,10 @@ frontend/          all static site files (served as web root)
   css/ js/ data/   design system, interactions, skus.json
   assets/img/      all web-ready imagery (WebP)
 middleware.js      edge check — /hub, /data, /assets need the auth cookie.
-                   Logic + `config` must both live here: Vercel reads the
-                   matcher statically at build time, so re-exporting it from
-                   another file drops it and runs middleware on every route.
+                   Logic + `config` must both live here. Re-exporting `config`
+                   from another module does not work: the matcher is dropped
+                   and the middleware runs on every route (which 302s "/" to
+                   "/" forever). Keep the matcher a literal in this file.
 backend/           API source
   api/auth.js      POST password → sets HttpOnly cookie
   api/waitlist.js  teaser email capture (logs to Vercel for now)
