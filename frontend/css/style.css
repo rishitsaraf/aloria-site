@@ -30,7 +30,7 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
-img { max-width: 100%; display: block; }
+img { max-width: 100%; height: auto; display: block; }
 a { color: var(--gold); text-decoration: none; }
 
 /* ---------- type scale ---------- */
@@ -279,3 +279,91 @@ footer.hub-footer p { font-family: var(--mono); font-size: 0.62rem; letter-spaci
 .blush-crystal { background: linear-gradient(180deg, var(--white), rgba(150,140,190,0.05) 45%, var(--white)); }
 .full-bleed { max-width: none; padding-left: 0; padding-right: 0; }
 .inner { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+
+/* ============================================================
+   MOBILE — additive layer, desktop untouched.
+   Breakpoints: 900 (tablet/table scroll), 760 (phone), 420 (small phone).
+   Measured before: /hub/ overflowed its viewport by 182px at 390px wide
+   and 252px at 320px; / overflowed by 56px at 320px. Target is 0 at every
+   width. The rules below are ordered by what actually caused that overflow.
+   ============================================================ */
+
+/* --- 1. Tables were the biggest offender: 540px wide inside a 375px viewport.
+       Give each table its own horizontal scroll so it can never push the page. --- */
+@media (max-width: 900px) {
+  details.specs table,
+  section.block table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  details.specs th, details.specs td { padding: 0.65rem 1rem; white-space: nowrap; }
+}
+
+/* --- 2. Long SKU codes must not force the page sideways. --- */
+.comp-card .code, .comp-card .skus, td.code, .mono { overflow-wrap: anywhere; }
+
+/* --- 3. Mobile browser chrome makes 100vh taller than the visible viewport. --- */
+@supports (height: 100dvh) {
+  .teaser { min-height: 100dvh; }
+  .hero { min-height: 100dvh; }
+}
+
+@media (max-width: 760px) {
+  /* --- 4. Nav: a non-wrapping flex row clipped its links off-screen.
+         Let the links scroll within the bar instead of widening the page. --- */
+  .hub-nav { padding: 0.7rem 1rem; gap: 0.6rem; }
+  .hub-nav .brand { font-size: 1rem; letter-spacing: 0.2em; margin-right: 0; }
+  .hub-nav .links {
+    min-width: 0; flex: 1; gap: 1.1rem; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    justify-content: flex-end;
+  }
+  .hub-nav .links::-webkit-scrollbar { display: none; }
+  .hub-nav .links a { white-space: nowrap; padding: 0.55rem 0; }
+
+  /* --- 5. Reclaim space: desktop-sized gutters waste a phone screen. --- */
+  section.block { padding: 3.5rem 1.15rem; }
+  .inner { padding: 0 1.15rem; }
+  .hero { padding: 5.5rem 1.15rem 2.5rem; gap: 1.5rem; min-height: 0; }
+  .stage { height: min(62vh, 420px); }
+  .section-num { top: 1rem; right: 0.25rem; }
+  .atelier { padding: 2rem 1.15rem; }
+  .swatch-play { padding: 1.5rem; gap: 1.75rem; }
+  footer.hub-footer { padding: 2.5rem 1.15rem 3rem; }
+
+  /* --- 6. Touch targets: 44px minimum. --- */
+  .filter-btn { padding: 0.7rem 1.2rem; min-height: 44px; }
+  .swatch-btn { width: 48px; height: 48px; }
+  .hero-cta { padding: 1rem 2rem; }
+  .gate button { padding: 0.9rem 2.4rem; min-height: 44px; }
+
+  /* --- 7. Gallery: 3 columns is unreadable on a phone. --- */
+  .gallery { columns: 2 140px; column-gap: 0.6rem; }
+  .cat-worn { height: 52vh; min-height: 300px; }
+}
+
+/* --- 8. Waitlist was a non-wrapping row: the 56px overflow at 320px. --- */
+@media (max-width: 460px) {
+  .waitlist { flex-direction: column; gap: 0.55rem; }
+  .waitlist input { border-right: 1px solid var(--line); }
+  .waitlist button { padding: 0.95rem 1.6rem; min-height: 44px; }
+  .gallery { columns: 1; }
+}
+
+/* --- 9. Inputs below 16px make iOS zoom in on focus. --- */
+@media (max-width: 760px) {
+  .waitlist input, .gate input { font-size: 16px; }
+  .gate input { letter-spacing: 0.3em; }
+}
+
+/* --- 10. Keyboard focus was invisible everywhere (outline:none on both inputs). --- */
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.gate input:focus-visible, .gate button:focus-visible { outline-color: var(--gold-bright); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .reveal { opacity: 1; transform: none; }
+  .piece { opacity: 1; transform: none; }
+}
