@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ALORIA — Coming Soon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- ======== GATE ======== -->
+<div class="gate" id="gate">
+  <div class="gate-box" style="display:flex;flex-direction:column;align-items:center;">
+    <div class="wordmark">ALORIA</div>
+    <div class="gate-sub">Private Preview</div>
+    <form id="gateForm" autocomplete="off">
+      <input type="password" id="gatePass" placeholder="ENTER PASSWORD" aria-label="Password">
+      <div class="gate-error" id="gateError">That key doesn't fit — try again</div>
+      <button type="submit">Unlock</button>
+    </form>
+  </div>
+  <div class="gate-hint">Stackable · Customisable · Yours</div>
+</div>
+
+<!-- ======== TEASER (visible if user closes gate / scrolls) ======== -->
+<main class="teaser">
+  <div class="eyebrow">An upcoming jewellery house</div>
+  <h1 class="serif">ALORIA</h1>
+  <p class="tagline">Stackable. Customisable. Yours.</p>
+  <span class="stone-dots" aria-hidden="true">
+    <i class="dot-crystal"></i><i class="dot-emerald"></i><i class="dot-sapphire"></i><i class="dot-ruby"></i>
+  </span>
+  <form class="waitlist" id="waitlistForm">
+    <input type="email" id="waitlistEmail" placeholder="your@email.com" required aria-label="Email">
+    <button type="submit">Join waitlist</button>
+  </form>
+  <div class="waitlist-msg" id="waitlistMsg"></div>
+</main>
+
+<script src="/js/gate.js"></script>
+</body>
+</html>

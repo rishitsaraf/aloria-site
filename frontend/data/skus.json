@@ -1,0 +1,68 @@
+{
+  "brand": "Aloria",
+  "base": { "material": "925 Silver", "platings": ["Gold", "Rhodium"] },
+  "stones": {
+    "colors": [
+      { "id": "crystal", "name": "Crystal", "hex": "#e8e6ef" },
+      { "id": "emerald", "name": "Emerald Green", "hex": "#0f7a4d" },
+      { "id": "sapphire", "name": "Sapphire Blue", "hex": "#1e4fc2" },
+      { "id": "ruby", "name": "Ruby Red", "hex": "#c0143c" }
+    ],
+    "shapes": ["Round", "Oval", "Pear", "Emerald Cut", "Heart"]
+  },
+  "categories": [
+    {
+      "id": "ear",
+      "name": "Ear",
+      "number": "01",
+      "concept": "Customizable, stackable earrings. One classic base stud in four shapes; cuffs and stack pieces mix and match into a curated piercing stack — the look of multiple piercings without the piercings.",
+      "components": [
+        { "code": "E1", "name": "Primary Stem Stud", "function": "Base piercing. Fixed stone in minimal prong or bezel setting. Anchors the modular system via its post.", "variants": "2 platings × 5 shapes × 4 colors", "skus": 32 },
+        { "code": "E2", "name": "Press-On Ear Cuff", "function": "Thick or thin non-piercing cuff with embedded focal stone. Wears without multiple piercings.", "variants": "2 platings × 5 shapes × 4 colors", "skus": 32 },
+        { "code": "E3", "name": "Detachable Drop Charm", "function": "Small key-loop stone drop — behind-ear or clips onto hoop. Interchangeable.", "variants": "2 platings × 5 shapes × 4 colors", "skus": 32 },
+        { "code": "E4", "name": "Orbit Hoop / Jacket", "function": "Semi-circle halo that attaches to the back of the stud post and drops below the lobe.", "variants": "2 platings × 2 textures (plain/pavé)", "skus": 4 },
+        { "code": "E5", "name": "Linking Chain", "function": "Delicate chain with loops on both ends — threads onto stud post and loops onto cuff.", "variants": "2 platings × 2 lengths (short/long)", "skus": 4 }
+      ]
+    },
+    {
+      "id": "neck",
+      "name": "Neck",
+      "number": "02",
+      "concept": "Customizable layered stacks — chokers, lariats, long drops, and layering chains that mix and match. Layered jewellery made effortless, versatile, and individual.",
+      "components": [
+        { "code": "N1", "name": "Primary Pendant Necklace", "function": "Anchor piece: fixed stone pendant on chain.", "variants": "2 platings × 5 shapes × 4 colors", "skus": 32 },
+        { "code": "N2", "name": "Solo Choker Necklace", "function": "Non-modular standalone choker layer.", "variants": "2 platings × 5 shapes × 4 colors", "skus": 32 },
+        { "code": "N3", "name": "Detachable Drop Charm", "function": "Slides onto N1 bail or clips onto chain — swap the pendant story.", "variants": "2 platings × 5 shapes × 4 colors", "skus": 32 },
+        { "code": "N4", "name": "Orbit Halo Jacket", "function": "Semi-circle frame that sits around primary pendant.", "variants": "2 platings × 2 textures (plain/pavé)", "skus": 4 },
+        { "code": "N5", "name": "Linking Extender Chain", "function": "Converts lengths — choker to drop, short to lariat.", "variants": "2 platings × 2 lengths (short/long)", "skus": 4 }
+      ]
+    },
+    {
+      "id": "rings",
+      "name": "Rings",
+      "number": "03",
+      "concept": "Stackable rings styled across multiple fingers or worn as a full statement stack. Everyday-easy, plus playful pinky rings with cute colourful stones.",
+      "components": [
+        { "code": "R1", "name": "Primary Solitaire Ring", "function": "Anchor ring: fixed stone solitaire.", "variants": "2 platings × 5 shapes × 4 colors", "skus": 32 },
+        { "code": "R2", "name": "Adjustable Slip-On Ring", "function": "Non-sized standalone — fits any finger.", "variants": "2 platings × 5 shapes × 4 colors", "skus": 32 },
+        { "code": "R3", "name": "Detachable Shank Charm", "function": "Clips onto R1 band — adds a stone story to the stack.", "variants": "2 platings × 5 shapes × 4 colors", "skus": 32 },
+        { "code": "R4", "name": "Orbit Halo Jacket Band", "function": "Semi-circle halo that circles around R1.", "variants": "2 platings × 2 textures (plain/pavé)", "skus": 4 },
+        { "code": "R5", "name": "Linking Stacker Band", "function": "Thin band designed to stack flush with R1.", "variants": "2 platings × 2 widths (thin/wide)", "skus": 4 },
+        { "code": "R-SIZE", "name": "Size Range", "function": "US 3 to 10", "variants": "", "skus": 0 }
+      ]
+    }
+  ],
+  "collections": [
+    { "name": "Lumière Link Set", "type": "Convertible 4-in-1 earring set", "category": "ear" },
+    { "name": "Lumière Gem Link Set", "type": "Convertible 3-in-1 earring set", "category": "ear" },
+    { "name": "Stack Line", "type": "5-in-1 stacking ear system", "category": "ear" },
+    { "name": "Orbit Drop", "type": "5-in-1 earring system", "category": "ear" },
+    { "name": "Rainbow Kiss", "type": "Ear stack collection", "category": "ear" },
+    { "name": "Emerald Luxe", "type": "Ear stack", "category": "ear" },
+    { "name": "Lumière Necklace Stack", "type": "6-piece layering set", "category": "neck" },
+    { "name": "Lumière Charm Stack", "type": "5-piece layering set", "category": "neck" },
+    { "name": "Lumière Opal Stack", "type": "6-piece layering set", "category": "neck" },
+    { "name": "Lumière Ring Stacks", "type": "Mix-and-match ring collection", "category": "rings" },
+    { "name": "Lumière Starfall", "type": "Celestial statement rings", "category": "rings" }
+  ]
+}
