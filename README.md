@@ -10,11 +10,13 @@ frontend/          all static site files (served as web root)
   hub/index.html   the private hub
   css/ js/ data/   design system, interactions, skus.json
   assets/img/      all web-ready imagery (WebP)
-backend/           auth + API source
-  middleware.js    edge check — /hub, /data, /assets need the auth cookie
+middleware.js      edge check — /hub, /data, /assets need the auth cookie.
+                   Logic + `config` must both live here: Vercel reads the
+                   matcher statically at build time, so re-exporting it from
+                   another file drops it and runs middleware on every route.
+backend/           API source
   api/auth.js      POST password → sets HttpOnly cookie
   api/waitlist.js  teaser email capture (logs to Vercel for now)
-middleware.js      root shim (Vercel requires root placement) → backend/
 api/               root shims → backend/api/
 vercel.json        static config: frontend/ as output dir
 ```
