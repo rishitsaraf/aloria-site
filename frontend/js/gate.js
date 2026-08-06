@@ -7,7 +7,7 @@
 
   // SHA-256 of the shared password (local-preview fallback only;
   // the deployed check happens server-side in /api/auth).
-  const LOCAL_HASH = "896953b0f6c20ca6f5d29330b52e682484825348ef59fd32443b8521038929ad";
+  const LOCAL_HASH = "d37a8a037c10fa05b252ca10fbe8ee7af3a2465a9e6fdeebc8082b4beadf1c40";
 
   async function sha256(str) {
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
