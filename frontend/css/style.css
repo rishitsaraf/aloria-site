@@ -289,16 +289,66 @@ footer.hub-footer p { font-family: var(--mono); font-size: 0.62rem; letter-spaci
    ============================================================ */
 
 /* --- 1. Tables were the biggest offender: 540px wide inside a 375px viewport.
-       Give each table its own horizontal scroll so it can never push the page. --- */
+       hub.js now renders every variant matrix inside
+         .table-wrap > .table-scroll[role=region][tabindex] > table
+       .table-scroll is a plain block box, so its width is fixed by its containing
+       block (details.specs) no matter how wide the table inside it gets; overflow-x
+       absorbs the excess as internal scroll instead of propagating it to the document.
+       The scroll container is the wrapper, NOT the table — the table keeps its
+       display:table box and therefore its semantics for assistive tech. --- */
 @media (max-width: 900px) {
-  details.specs table,
-  section.block table {
-    display: block;
-    width: 100%;
+  .table-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain; /* don't trigger back-swipe at the ends */
   }
-  details.specs th, details.specs td { padding: 0.65rem 1rem; white-space: nowrap; }
+  .table-wrap { position: relative; }
+
+  /* right-edge fade: the affordance that says "there is more over here".
+     It lives on .table-wrap, not .table-scroll — an abspos child of a scroll
+     container scrolls with the content and would only appear at the far end. */
+  .table-wrap::after {
+    content: "";
+    position: absolute; top: 0; right: 0; bottom: 0; width: 2.4rem;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0), var(--white) 82%);
+    opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+  }
+  .table-wrap.is-scrollable::after { opacity: 1; }
+  .table-wrap.at-end::after { opacity: 0; }
+  .table-wrap.is-scrollable + .table-hint { display: block; }
+  .table-wrap.at-end + .table-hint { opacity: 0; }
+
+  /* short columns stay on one line so rows scan cleanly; the long prose column
+     wraps against a min-width, which keeps the scroll distance sane. */
+  details.specs th, details.specs td { padding: 0.6rem 0.85rem; white-space: nowrap; }
+  details.specs .c-fn { white-space: normal; min-width: 15rem; }
+  details.specs .c-var { white-space: normal; min-width: 9rem; }
+  details.specs .c-name { min-width: 7.5rem; }
+
+  /* safety net for any table that is NOT wrapped by hub.js (direct child only,
+     so it can never double up with .table-scroll). */
+  details.specs > table,
+  section.block > table,
+  .inner > table {
+    display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* the fade's companion hint; hidden until JS proves the table really scrolls */
+.table-hint {
+  display: none;
+  font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-soft);
+  padding: 0.45rem 0.85rem 0.9rem; text-align: right;
+  transition: opacity 0.25s ease;
+}
+/* keyboard users can scroll the region; inset the ring so it cannot overflow */
+.table-scroll:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+
+@media (max-width: 420px) {
+  details.specs table { font-size: 0.78rem; }
+  details.specs th, details.specs td { padding: 0.55rem 0.7rem; }
+  details.specs .c-fn { min-width: 13rem; }
 }
 
 /* --- 2. Long SKU codes must not force the page sideways. --- */
