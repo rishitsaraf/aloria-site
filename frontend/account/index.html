@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Account — ALORIA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/shop.css">
+</head>
+<body>
+
+<main class="store-main">
+  <!-- signed out -->
+  <div id="authView" hidden>
+    <div class="store-head">
+      <div>
+        <div class="eyebrow">Your Aloria</div>
+        <h1 id="authTitle">Sign in</h1>
+      </div>
+    </div>
+    <div class="auth-tabs">
+      <button id="tabLogin" class="active" type="button">Sign in</button>
+      <button id="tabRegister" type="button">Create account</button>
+    </div>
+    <form class="auth-card" id="authForm">
+      <div class="field" id="nameField" hidden><label for="authName">Name</label><input id="authName" autocomplete="name"></div>
+      <div class="field"><label for="authEmail">Email</label><input id="authEmail" type="email" required autocomplete="email"></div>
+      <div class="field"><label for="authPass">Password</label><input id="authPass" type="password" required minlength="8" autocomplete="current-password"></div>
+      <button class="btn wide" id="authBtn" type="submit">Sign in</button>
+      <div class="form-msg" id="authMsg"></div>
+    </form>
+  </div>
+
+  <!-- signed in -->
+  <div id="accountView" hidden>
+    <div class="store-head">
+      <div>
+        <div class="eyebrow">Your Aloria</div>
+        <h1 id="helloTitle">Hello</h1>
+      </div>
+      <div><button class="btn ghost small" id="logoutBtn" type="button">Sign out</button></div>
+    </div>
+    <p class="mono" id="accountEmail" style="color:var(--ink-soft);margin-bottom:2rem"></p>
+    <h2 class="serif" style="font-size:1.4rem;margin-bottom:1rem">Orders</h2>
+    <div id="ordersList"></div>
+    <div class="empty-state" id="ordersEmpty" hidden>
+      <div class="big">No orders yet</div>
+      <p><a href="/shop">Your first stack awaits</a></p>
+    </div>
+  </div>
+</main>
+
+<script src="/js/store.js"></script>
+<script src="/js/account.js"></script>
+</body>
+</html>

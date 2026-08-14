@@ -23,6 +23,8 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+/* the hidden attribute must win even over display:flex/grid rules */
+[hidden] { display: none !important; }
 body {
   font-family: var(--sans);
   color: var(--ink);

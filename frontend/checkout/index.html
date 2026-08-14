@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout — ALORIA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/shop.css">
+</head>
+<body>
+
+<main class="store-main">
+  <div class="store-head">
+    <div>
+      <div class="eyebrow">Almost yours</div>
+      <h1>Checkout</h1>
+    </div>
+  </div>
+
+  <form class="checkout-layout" id="checkoutForm" hidden>
+    <div>
+      <div class="checkout-section">
+        <h2 class="serif">Contact</h2>
+        <div class="field"><label for="coEmail">Email</label><input id="coEmail" type="email" required autocomplete="email"></div>
+        <div class="field"><label for="coName">Full name</label><input id="coName" required autocomplete="name"></div>
+      </div>
+
+      <div class="checkout-section">
+        <h2 class="serif">Shipping address</h2>
+        <div class="field"><label for="coLine1">Address</label><input id="coLine1" required autocomplete="address-line1"></div>
+        <div class="field"><label for="coLine2">Apartment, suite (optional)</label><input id="coLine2" autocomplete="address-line2"></div>
+        <div class="form-row">
+          <div class="field"><label for="coCity">City</label><input id="coCity" required autocomplete="address-level2"></div>
+          <div class="field"><label for="coRegion">State / region</label><input id="coRegion" autocomplete="address-level1"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label for="coPostal">Postal code</label><input id="coPostal" required autocomplete="postal-code"></div>
+          <div class="field"><label for="coCountry">Country</label>
+            <select id="coCountry" autocomplete="country"></select>
+          </div>
+        </div>
+        <div class="field"><label for="coPhone">Phone (optional)</label><input id="coPhone" autocomplete="tel"></div>
+      </div>
+
+      <div class="checkout-section">
+        <h2 class="serif">Payment</h2>
+        <div class="pay-choice" id="payChoice">
+          <label><input type="radio" name="pay" value="stripe" checked> Card / wallet — secure Stripe checkout</label>
+          <label><input type="radio" name="pay" value="test"> Test order (no payment — pre-launch mode)</label>
+        </div>
+      </div>
+
+      <button class="btn gold wide" id="placeBtn" type="submit">Place order</button>
+      <div class="form-msg" id="coMsg"></div>
+    </div>
+
+    <aside class="summary">
+      <h2 class="serif">Your bag</h2>
+      <div id="miniLines"></div>
+      <div class="discount-row">
+        <input id="discountInput" placeholder="Discount code" aria-label="Discount code">
+        <button class="btn ghost small" id="discountBtn" type="button">Apply</button>
+      </div>
+      <div class="form-msg" id="discountMsg"></div>
+      <div class="sum-row"><span>Subtotal</span><span id="sumSubtotal"></span></div>
+      <div class="sum-row" id="discountRow" hidden><span>Discount</span><span id="sumDiscount"></span></div>
+      <div class="sum-row"><span>Shipping</span><span id="sumShipping"></span></div>
+      <div class="sum-row total"><span>Total</span><span id="sumTotal"></span></div>
+    </aside>
+  </form>
+
+  <div class="empty-state" id="coEmpty" hidden>
+    <div class="big">Nothing to check out</div>
+    <p><a href="/shop">Back to the collection</a></p>
+  </div>
+</main>
+
+<script src="/js/store.js"></script>
+<script src="/js/checkout.js"></script>
+</body>
+</html>

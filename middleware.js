@@ -1,5 +1,7 @@
 /* ALORIA — edge middleware: protects the hub server-side.
-   Nothing under /hub, /data or /assets is served without the auth cookie.
+   Nothing under /hub or /data is served without the auth cookie.
+   /assets is public now: the storefront (shop/cart/checkout) sells with the
+   same imagery, so gating it would break the public shop.
 
    This file must hold the logic AND the `config` literal outright. Re-exporting
    config from another module silently drops the matcher and runs the middleware
@@ -7,13 +9,13 @@
    unreachable. Keep the matcher a literal here. */
 
 export const config = {
-  matcher: ["/hub", "/hub/(.*)", "/data/(.*)", "/assets/(.*)"],
+  matcher: ["/hub", "/hub/(.*)", "/data/(.*)"],
 };
 
 // Belt-and-braces copy of the matcher. If the build ever drops the config
 // again, this keeps the damage to "hub inaccessible" instead of a site-wide
 // redirect loop.
-const PROTECTED = /^\/(hub|data|assets)(\/|$)/;
+const PROTECTED = /^\/(hub|data)(\/|$)/;
 
 async function sha256Hex(str) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));

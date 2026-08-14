@@ -1,0 +1,408 @@
+/* /api/store/admin/* — the CMS backend. Every route here is wrapped with
+   requireAdmin by the router. Products own an options schema; variants are
+   the sellable rows (sku / price / stock / image) keyed by option values. */
+
+const db = require("../lib/db");
+const emailLib = require("../lib/email");
+const cartLib = require("./cartLib");
+const checkout = require("./checkout");
+const {
+  json, badRequest, notFound, cleanString, cleanInt, slugify,
+} = require("../lib/http");
+
+/* ---------- helpers ---------- */
+
+function cleanOptions(raw) {
+  if (raw == null) return [];
+  if (!Array.isArray(raw) || raw.length > 3) throw badRequest("options must be an array of at most 3 option groups");
+  return raw.map((o) => {
+    const name = cleanString(o && o.name, { name: "Option name", max: 40, required: true });
+    const values = Array.isArray(o.values) ? o.values.map((v) => cleanString(v, { name: "Option value", max: 60, required: true })) : [];
+    if (values.length === 0 || values.length > 30) throw badRequest(`Option "${name}" needs 1–30 values`);
+    if (new Set(values).size !== values.length) throw badRequest(`Option "${name}" has duplicate values`);
+    return { name, values };
+  });
+}
+
+function cleanImages(raw) {
+  if (raw == null) return [];
+  if (!Array.isArray(raw) || raw.length > 12) throw badRequest("images must be an array (max 12)");
+  return raw.map((s) => {
+    const url = cleanString(s, { name: "Image", max: 500, required: true });
+    if (!/^(\/|https:\/\/)/.test(url)) throw badRequest("Image paths must start with / or https://");
+    return url;
+  });
+}
+
+const PRODUCT_STATUSES = ["draft", "active", "archived"];
+const CATEGORIES = ["ear", "neck", "rings"];
+
+/* ---------- metrics dashboard ---------- */
+
+async function metrics(req, res) {
+  const [rev, prod, low, cust, carts, recent] = await Promise.all([
+    db.query(`SELECT
+        COUNT(*) FILTER (WHERE status IN ('paid','fulfilled'))::int AS paid_orders,
+        COALESCE(SUM(total_cents) FILTER (WHERE status IN ('paid','fulfilled')), 0)::bigint AS revenue_cents,
+        COUNT(*) FILTER (WHERE status = 'pending')::int AS pending_orders,
+        COUNT(*) FILTER (WHERE status IN ('paid','fulfilled') AND from_recovered_cart)::int AS recovered_orders,
+        COALESCE(SUM(total_cents) FILTER (WHERE status IN ('paid','fulfilled') AND from_recovered_cart), 0)::bigint AS recovered_revenue_cents
+      FROM orders`),
+    db.query(`SELECT COUNT(*) FILTER (WHERE status = 'active')::int AS active, COUNT(*)::int AS total FROM products`),
+    db.query(`SELECT COUNT(*)::int AS n FROM variants WHERE active AND stock <= 3`),
+    db.query(`SELECT COUNT(*)::int AS n FROM users WHERE role = 'customer'`),
+    db.query(`SELECT COUNT(*)::int AS n,
+                     COALESCE(SUM(sub.value), 0)::bigint AS value_cents
+                FROM carts c
+                LEFT JOIN LATERAL (
+                  SELECT SUM(ci.qty * COALESCE(v.price_cents, p.price_cents)) AS value
+                    FROM cart_items ci JOIN variants v ON v.id = ci.variant_id JOIN products p ON p.id = v.product_id
+                   WHERE ci.cart_id = c.id) sub ON true
+               WHERE c.status = 'abandoned'`),
+    db.query(`SELECT number, email, status, total_cents, currency, created_at FROM orders ORDER BY created_at DESC LIMIT 8`),
+  ]);
+  const m = rev.rows[0];
+  json(res, 200, {
+    revenueCents: Number(m.revenue_cents),
+    paidOrders: m.paid_orders,
+    pendingOrders: m.pending_orders,
+    aovCents: m.paid_orders ? Math.round(Number(m.revenue_cents) / m.paid_orders) : 0,
+    recoveredOrders: m.recovered_orders,
+    recoveredRevenueCents: Number(m.recovered_revenue_cents),
+    activeProducts: prod.rows[0].active,
+    totalProducts: prod.rows[0].total,
+    lowStockVariants: low.rows[0].n,
+    customers: cust.rows[0].n,
+    abandonedCarts: carts.rows[0].n,
+    abandonedValueCents: Number(carts.rows[0].value_cents),
+    recentOrders: recent.rows,
+  });
+}
+
+/* ---------- products ---------- */
+
+async function listProducts(req, res) {
+  const q = req.query || {};
+  const params = [];
+  let where = "true";
+  if (PRODUCT_STATUSES.includes(q.status)) { params.push(q.status); where += ` AND p.status = $${params.length}`; }
+  if (CATEGORIES.includes(q.category)) { params.push(q.category); where += ` AND p.category = $${params.length}`; }
+  const search = cleanString(q.q, { max: 100 });
+  if (search) { params.push(`%${search}%`); where += ` AND (p.title ILIKE $${params.length} OR p.slug ILIKE $${params.length})`; }
+  const r = await db.query(
+    `SELECT p.id, p.slug, p.title, p.category, p.status, p.price_cents, p.currency, p.featured, p.images, p.updated_at,
+            COUNT(v.id)::int AS variant_count,
+            COALESCE(SUM(v.stock) FILTER (WHERE v.active), 0)::int AS total_stock
+       FROM products p LEFT JOIN variants v ON v.product_id = p.id
+      WHERE ${where} GROUP BY p.id ORDER BY p.updated_at DESC LIMIT 200`,
+    params
+  );
+  json(res, 200, { products: r.rows });
+}
+
+function productFields(body, { partial = false } = {}) {
+  const out = {};
+  const has = (k) => !partial || body[k] !== undefined;
+  if (has("title")) out.title = cleanString(body.title, { name: "Title", max: 160, required: true });
+  if (has("subtitle")) out.subtitle = cleanString(body.subtitle, { name: "Subtitle", max: 240 });
+  if (has("description")) out.description = cleanString(body.description, { name: "Description", max: 5000 });
+  if (has("category")) {
+    if (!CATEGORIES.includes(body.category)) throw badRequest("category must be ear, neck or rings");
+    out.category = body.category;
+  }
+  if (has("status")) {
+    if (!PRODUCT_STATUSES.includes(body.status)) throw badRequest("status must be draft, active or archived");
+    out.status = body.status;
+  }
+  if (has("price_cents")) out.price_cents = cleanInt(body.price_cents, { name: "price_cents", min: 0, max: 100_000_000 });
+  if (has("images")) out.images = JSON.stringify(cleanImages(body.images));
+  if (has("options")) out.options = JSON.stringify(cleanOptions(body.options));
+  if (has("tags")) out.tags = JSON.stringify(Array.isArray(body.tags) ? body.tags.slice(0, 20).map((t) => cleanString(t, { max: 40 })) : []);
+  if (has("featured")) out.featured = Boolean(body.featured);
+  return out;
+}
+
+async function createProduct(req, res) {
+  const body = req.body || {};
+  const fields = productFields({ status: "draft", subtitle: "", description: "", category: "ear", price_cents: 0, images: [], options: [], tags: [], featured: false, ...body });
+  let slug = slugify(body.slug || fields.title);
+  const clash = await db.query("SELECT 1 FROM products WHERE slug = $1", [slug]);
+  if (clash.rows.length) slug = `${slug}-${Date.now().toString(36)}`;
+  const cols = Object.keys(fields);
+  const r = await db.query(
+    `INSERT INTO products (slug, ${cols.join(", ")}) VALUES ($1, ${cols.map((_, i) => `$${i + 2}`).join(", ")}) RETURNING *`,
+    [slug, ...cols.map((c) => fields[c])]
+  );
+  json(res, 201, { product: r.rows[0] });
+}
+
+async function getProduct(req, res, params) {
+  const id = cleanInt(params.id, { name: "product id", min: 1 });
+  const r = await db.query("SELECT * FROM products WHERE id = $1", [id]);
+  if (!r.rows.length) throw notFound("Product not found");
+  const variants = (await db.query("SELECT * FROM variants WHERE product_id = $1 ORDER BY id", [id])).rows;
+  json(res, 200, { product: r.rows[0], variants });
+}
+
+async function updateProduct(req, res, params) {
+  const id = cleanInt(params.id, { name: "product id", min: 1 });
+  const fields = productFields(req.body || {}, { partial: true });
+  if ((req.body || {}).slug !== undefined) {
+    const slug = slugify(req.body.slug);
+    const clash = await db.query("SELECT 1 FROM products WHERE slug = $1 AND id <> $2", [slug, id]);
+    if (clash.rows.length) throw badRequest("That slug is already in use");
+    fields.slug = slug;
+  }
+  if (Object.keys(fields).length === 0) throw badRequest("Nothing to update");
+  const cols = Object.keys(fields);
+  const r = await db.query(
+    `UPDATE products SET ${cols.map((c, i) => `${c} = $${i + 2}`).join(", ")}, updated_at = now() WHERE id = $1 RETURNING *`,
+    [id, ...cols.map((c) => fields[c])]
+  );
+  if (!r.rows.length) throw notFound("Product not found");
+  json(res, 200, { product: r.rows[0] });
+}
+
+async function deleteProduct(req, res, params) {
+  const id = cleanInt(params.id, { name: "product id", min: 1 });
+  // Products that have been sold are archived (order history must survive);
+  // never-sold products are removed outright.
+  const sold = await db.query(
+    "SELECT 1 FROM order_items oi JOIN variants v ON v.id = oi.variant_id WHERE v.product_id = $1 LIMIT 1",
+    [id]
+  );
+  if (sold.rows.length) {
+    await db.query("UPDATE products SET status = 'archived', updated_at = now() WHERE id = $1", [id]);
+    json(res, 200, { ok: true, archived: true });
+  } else {
+    const r = await db.query("DELETE FROM products WHERE id = $1", [id]);
+    if (r.rowCount === 0) throw notFound("Product not found");
+    json(res, 200, { ok: true, deleted: true });
+  }
+}
+
+/* ---------- variants (bulk upsert per product) ---------- */
+
+async function putVariants(req, res, params) {
+  const productId = cleanInt(params.id, { name: "product id", min: 1 });
+  const pr = await db.query("SELECT * FROM products WHERE id = $1", [productId]);
+  const product = pr.rows[0];
+  if (!product) throw notFound("Product not found");
+
+  const list = (req.body || {}).variants;
+  if (!Array.isArray(list) || list.length > 500) throw badRequest("variants must be an array (max 500)");
+  const optionNames = (product.options || []).map((o) => o.name);
+
+  const cleaned = list.map((v, idx) => {
+    const sku = cleanString(v.sku, { name: `variants[${idx}].sku`, max: 60, required: true }).toUpperCase();
+    const options = {};
+    for (const name of optionNames) {
+      const group = (product.options || []).find((o) => o.name === name);
+      const value = cleanString(v.options && v.options[name], { name: `variants[${idx}].options.${name}`, max: 60, required: true });
+      if (!group.values.includes(value)) throw badRequest(`"${value}" is not a value of option "${name}"`);
+      options[name] = value;
+    }
+    return {
+      id: v.id ? cleanInt(v.id, { name: "variant id", min: 1 }) : null,
+      sku,
+      options,
+      price_cents: v.price_cents == null || v.price_cents === "" ? null : cleanInt(v.price_cents, { name: "price_cents", min: 0, max: 100_000_000 }),
+      compare_at_cents: v.compare_at_cents == null || v.compare_at_cents === "" ? null : cleanInt(v.compare_at_cents, { name: "compare_at_cents", min: 0, max: 100_000_000 }),
+      stock: cleanInt(v.stock == null ? 0 : v.stock, { name: "stock", min: 0, max: 1_000_000 }),
+      image: v.image ? cleanString(v.image, { max: 500 }) : null,
+      active: v.active !== false,
+    };
+  });
+  const skus = cleaned.map((v) => v.sku);
+  if (new Set(skus).size !== skus.length) throw badRequest("Duplicate SKUs in variant list");
+  const signatures = cleaned.map((v) => JSON.stringify(optionNames.map((n) => v.options[n])));
+  if (new Set(signatures).size !== signatures.length) throw badRequest("Two variants share the same option combination");
+
+  await db.tx(async (client) => {
+    // pg returns BIGINT ids as strings — normalize to Number before comparing,
+    // or every kept id "misses" and the whole matrix gets deleted.
+    const existing = (await client.query("SELECT id FROM variants WHERE product_id = $1", [productId])).rows.map((r2) => Number(r2.id));
+    const keptIds = cleaned.filter((v) => v.id).map((v) => Number(v.id));
+    const toDelete = existing.filter((id) => !keptIds.includes(id));
+    if (toDelete.length) {
+      // Sold variants are deactivated instead of deleted so order lines keep meaning.
+      await client.query(
+        `UPDATE variants SET active = false, updated_at = now()
+          WHERE id = ANY($1) AND EXISTS (SELECT 1 FROM order_items oi WHERE oi.variant_id = variants.id)`,
+        [toDelete]
+      );
+      await client.query(
+        `DELETE FROM variants WHERE id = ANY($1) AND NOT EXISTS (SELECT 1 FROM order_items oi WHERE oi.variant_id = variants.id)`,
+        [toDelete]
+      );
+    }
+    for (const v of cleaned) {
+      const clash = await client.query(
+        "SELECT 1 FROM variants WHERE sku = $1 AND product_id <> $2" + (v.id ? " AND id <> $3" : ""),
+        v.id ? [v.sku, productId, v.id] : [v.sku, productId]
+      );
+      if (clash.rows.length) throw badRequest(`SKU ${v.sku} is already used by another product`);
+      if (v.id) {
+        await client.query(
+          `UPDATE variants SET sku=$1, options=$2, price_cents=$3, compare_at_cents=$4, stock=$5, image=$6, active=$7, updated_at=now()
+            WHERE id = $8 AND product_id = $9`,
+          [v.sku, JSON.stringify(v.options), v.price_cents, v.compare_at_cents, v.stock, v.image, v.active, v.id, productId]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO variants (product_id, sku, options, price_cents, compare_at_cents, stock, image, active)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           ON CONFLICT (sku) DO UPDATE SET options=EXCLUDED.options, price_cents=EXCLUDED.price_cents,
+             compare_at_cents=EXCLUDED.compare_at_cents, stock=EXCLUDED.stock, image=EXCLUDED.image,
+             active=EXCLUDED.active, updated_at=now()
+           WHERE variants.product_id = $1`,
+          [productId, v.sku, JSON.stringify(v.options), v.price_cents, v.compare_at_cents, v.stock, v.image, v.active]
+        );
+      }
+    }
+  });
+  const variants = (await db.query("SELECT * FROM variants WHERE product_id = $1 ORDER BY id", [productId])).rows;
+  json(res, 200, { ok: true, variants });
+}
+
+/* ---------- orders ---------- */
+
+const ORDER_STATUSES = ["pending", "paid", "fulfilled", "cancelled", "refunded"];
+
+async function listOrders(req, res) {
+  const q = req.query || {};
+  const params = [];
+  let where = "true";
+  if (ORDER_STATUSES.includes(q.status)) { params.push(q.status); where += ` AND status = $${params.length}`; }
+  const search = cleanString(q.q, { max: 100 });
+  if (search) { params.push(`%${search}%`); where += ` AND (number ILIKE $${params.length} OR email ILIKE $${params.length})`; }
+  const r = await db.query(
+    `SELECT id, number, email, status, payment_method, total_cents, currency, from_recovered_cart, created_at
+       FROM orders WHERE ${where} ORDER BY created_at DESC LIMIT 200`,
+    params
+  );
+  json(res, 200, { orders: r.rows });
+}
+
+async function getOrder(req, res, params) {
+  const id = cleanInt(params.id, { name: "order id", min: 1 });
+  const r = await db.query("SELECT * FROM orders WHERE id = $1", [id]);
+  const order = r.rows[0];
+  if (!order) throw notFound("Order not found");
+  const items = (await db.query("SELECT * FROM order_items WHERE order_id = $1 ORDER BY id", [order.id])).rows;
+  json(res, 200, { order, items });
+}
+
+async function updateOrder(req, res, params) {
+  const id = cleanInt(params.id, { name: "order id", min: 1 });
+  const status = String((req.body || {}).status || "");
+  if (!ORDER_STATUSES.includes(status)) throw badRequest(`status must be one of ${ORDER_STATUSES.join(", ")}`);
+  const updated = await db.tx(async (client) => {
+    const cur = await client.query("SELECT * FROM orders WHERE id = $1 FOR UPDATE", [id]);
+    const order = cur.rows[0];
+    if (!order) throw notFound("Order not found");
+    const restockNow = ["cancelled", "refunded"].includes(status) && !["cancelled", "refunded"].includes(order.status);
+    const r = await client.query("UPDATE orders SET status = $1, updated_at = now() WHERE id = $2 RETURNING *", [status, id]);
+    if (restockNow) await checkout.restockOrder(client, id);
+    return r.rows[0];
+  });
+  json(res, 200, { order: updated });
+}
+
+/* ---------- customers ---------- */
+
+async function listCustomers(req, res) {
+  const r = await db.query(
+    `SELECT u.id, u.email, u.name, u.role, u.created_at, u.last_login_at,
+            COUNT(o.id) FILTER (WHERE o.status IN ('paid','fulfilled'))::int AS orders,
+            COALESCE(SUM(o.total_cents) FILTER (WHERE o.status IN ('paid','fulfilled')), 0)::bigint AS spent_cents
+       FROM users u LEFT JOIN orders o ON o.user_id = u.id
+      GROUP BY u.id ORDER BY spent_cents DESC, u.created_at DESC LIMIT 500`
+  );
+  json(res, 200, { customers: r.rows });
+}
+
+/* ---------- abandoned carts ---------- */
+
+async function listAbandoned(req, res) {
+  const r = await db.query(
+    `SELECT c.id, c.email, c.status, c.recovered, c.recovery_sent_at, c.updated_at, c.currency,
+            COALESCE(SUM(ci.qty), 0)::int AS item_count,
+            COALESCE(SUM(ci.qty * COALESCE(v.price_cents, p.price_cents)), 0)::bigint AS value_cents,
+            COALESCE(json_agg(json_build_object('title', p.title, 'label', v.options, 'qty', ci.qty))
+                     FILTER (WHERE ci.id IS NOT NULL), '[]') AS items
+       FROM carts c
+       LEFT JOIN cart_items ci ON ci.cart_id = c.id
+       LEFT JOIN variants v ON v.id = ci.variant_id
+       LEFT JOIN products p ON p.id = v.product_id
+      WHERE c.status = 'abandoned' OR (c.status = 'active' AND c.email IS NOT NULL AND c.updated_at < now() - interval '2 hours')
+      GROUP BY c.id HAVING COUNT(ci.id) > 0
+      ORDER BY c.updated_at DESC LIMIT 200`
+  );
+  json(res, 200, { carts: r.rows });
+}
+
+async function sendRecovery(req, res, params) {
+  const id = cleanInt(params.id, { name: "cart id", min: 1 });
+  const r = await db.query("SELECT * FROM carts WHERE id = $1", [id]);
+  const cart = r.rows[0];
+  if (!cart) throw notFound("Cart not found");
+  if (!cart.email) throw badRequest("No email captured for this cart");
+  if (cart.status === "converted") throw badRequest("This cart already checked out");
+
+  const token = cart.recovery_token || require("crypto").randomBytes(32).toString("hex");
+  await db.query("UPDATE carts SET recovery_token = $1, status = 'abandoned' WHERE id = $2", [token, id]);
+  const payload = await cartLib.cartPayload(cart);
+  const items = payload.items.filter((i) => i.purchasable)
+    .map((i) => ({ product_title: i.title, variant_label: i.variantLabel, qty: i.qty, unit_price_cents: i.unitCents }));
+  if (!items.length) throw badRequest("Cart has no purchasable items");
+  const result = await emailLib.sendCartRecovery({ ...cart, recovery_token: token }, items, payload.subtotalCents);
+  await db.query("UPDATE carts SET recovery_sent_at = now() WHERE id = $1", [id]);
+  json(res, 200, { ok: true, delivered: result.delivered });
+}
+
+/* ---------- discounts ---------- */
+
+async function listDiscounts(req, res) {
+  const r = await db.query("SELECT * FROM discounts ORDER BY created_at DESC LIMIT 200");
+  json(res, 200, { discounts: r.rows });
+}
+
+async function createDiscount(req, res) {
+  const body = req.body || {};
+  const code = cleanString(body.code, { name: "Code", max: 40, required: true }).toUpperCase().replace(/\s+/g, "");
+  const kind = body.kind === "fixed" ? "fixed" : "percent";
+  const value = cleanInt(body.value, { name: "value", min: 1, max: kind === "percent" ? 100 : 100_000_000 });
+  const minCents = cleanInt(body.min_cents == null ? 0 : body.min_cents, { name: "min_cents", min: 0, max: 100_000_000 });
+  const expiresAt = body.expires_at ? new Date(body.expires_at) : null;
+  if (expiresAt && isNaN(expiresAt.getTime())) throw badRequest("expires_at must be a valid date");
+  const r = await db.query(
+    `INSERT INTO discounts (code, kind, value, min_cents, expires_at, active)
+     VALUES ($1,$2,$3,$4,$5,true)
+     ON CONFLICT (code) DO UPDATE SET kind=$2, value=$3, min_cents=$4, expires_at=$5, active=true
+     RETURNING *`,
+    [code, kind, value, minCents, expiresAt]
+  );
+  json(res, 201, { discount: r.rows[0] });
+}
+
+async function deleteDiscount(req, res, params) {
+  const code = cleanString(params.code, { name: "code", max: 40, required: true }).toUpperCase();
+  await db.query("UPDATE discounts SET active = false WHERE code = $1", [code]);
+  json(res, 200, { ok: true });
+}
+
+/* ---------- waitlist ---------- */
+
+async function listWaitlist(req, res) {
+  const r = await db.query("SELECT email, created_at FROM waitlist ORDER BY created_at DESC LIMIT 1000");
+  json(res, 200, { waitlist: r.rows });
+}
+
+module.exports = {
+  metrics,
+  listProducts, createProduct, getProduct, updateProduct, deleteProduct, putVariants,
+  listOrders, getOrder, updateOrder,
+  listCustomers, listAbandoned, sendRecovery,
+  listDiscounts, createDiscount, deleteDiscount, listWaitlist,
+};

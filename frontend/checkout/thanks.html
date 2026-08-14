@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thank you — ALORIA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/shop.css">
+</head>
+<body>
+
+<main class="store-main" style="max-width:720px">
+  <div id="thanksWrap" hidden>
+    <div class="eyebrow">Order confirmed</div>
+    <h1 class="serif" style="font-size:clamp(2rem,5vw,3rem)">Thank you<span id="thanksName"></span>.</h1>
+    <p style="color:var(--ink-soft);margin-top:0.8rem">
+      Order <span class="mono" id="thanksNumber" style="color:var(--gold)"></span> —
+      a confirmation is on its way to <b id="thanksEmail"></b>.
+    </p>
+    <div class="status-pill" id="thanksStatus" style="margin-top:0.8rem"></div>
+
+    <div class="summary" style="margin-top:2rem">
+      <h2 class="serif">Your pieces</h2>
+      <div id="thanksLines"></div>
+      <div class="sum-row"><span>Subtotal</span><span id="tSubtotal"></span></div>
+      <div class="sum-row" id="tDiscountRow" hidden><span>Discount</span><span id="tDiscount"></span></div>
+      <div class="sum-row"><span>Shipping</span><span id="tShipping"></span></div>
+      <div class="sum-row total"><span>Total</span><span id="tTotal"></span></div>
+    </div>
+    <p style="margin-top:2rem"><a class="btn ghost" href="/shop">Continue shopping</a></p>
+  </div>
+  <div class="empty-state" id="thanksEmpty" hidden>
+    <div class="big">We couldn't find that order</div>
+    <p><a href="/shop">Back to the collection</a></p>
+  </div>
+</main>
+
+<script src="/js/store.js"></script>
+<script src="/js/thanks.js"></script>
+</body>
+</html>

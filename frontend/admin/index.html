@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>ALORIA — CMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/shop.css">
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin">
+
+<!-- login gate (shown when not an admin) -->
+<div class="admin-login" id="adminLogin" hidden>
+  <form class="card" id="adminLoginForm">
+    <div class="wordmark">ALORIA</div>
+    <div class="sub">Atelier Console</div>
+    <div class="field"><label for="alEmail">Email</label><input id="alEmail" type="email" required autocomplete="email"></div>
+    <div class="field"><label for="alPass">Password</label><input id="alPass" type="password" required autocomplete="current-password"></div>
+    <button class="btn wide" type="submit">Enter</button>
+    <div class="form-msg" id="alMsg"></div>
+  </form>
+</div>
+
+<!-- console -->
+<div class="admin-shell" id="adminShell" hidden>
+  <aside class="admin-side">
+    <div class="brand">ALORIA<small>Atelier Console</small></div>
+    <a href="#/dashboard" data-nav="dashboard">Dashboard</a>
+    <a href="#/products" data-nav="products">Products</a>
+    <a href="#/orders" data-nav="orders">Orders</a>
+    <a href="#/carts" data-nav="carts">Abandoned</a>
+    <a href="#/customers" data-nav="customers">Customers</a>
+    <a href="#/discounts" data-nav="discounts">Discounts</a>
+    <a href="#/waitlist" data-nav="waitlist">Waitlist</a>
+    <div class="spacer"></div>
+    <div class="who" id="adminWho"></div>
+    <button type="button" id="adminLogout">Sign out</button>
+  </aside>
+  <main class="admin-main" id="adminMain"></main>
+</div>
+
+<script src="/js/store.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

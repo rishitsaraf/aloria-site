@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop — ALORIA</title>
+<meta name="description" content="Stackable, customisable fine jewellery — ear stacks, layered necklaces and ring stacks in 925 silver.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/shop.css">
+</head>
+<body>
+
+<main class="store-main">
+  <div class="store-head">
+    <div>
+      <div class="eyebrow" id="shopEyebrow">The collection</div>
+      <h1 id="shopTitle">Shop</h1>
+    </div>
+    <div class="count" id="shopCount"></div>
+  </div>
+
+  <div class="filter-row" id="filterRow">
+    <button class="filter-btn" data-cat="">All</button>
+    <button class="filter-btn" data-cat="ear">Ear</button>
+    <button class="filter-btn" data-cat="neck">Neck</button>
+    <button class="filter-btn" data-cat="rings">Rings</button>
+  </div>
+
+  <div class="product-grid" id="grid"></div>
+  <div class="empty-state" id="emptyState" hidden>
+    <div class="big">Nothing here yet</div>
+    <p>The catalog is being polished — check back soon.</p>
+  </div>
+</main>
+
+<script src="/js/store.js"></script>
+<script src="/js/shop.js"></script>
+</body>
+</html>
