@@ -32,6 +32,12 @@ async function list(req, res) {
   let where = "p.status = 'active'";
   if (category) { params.push(category); where += ` AND p.category = $${params.length}`; }
   if (search) { params.push(`%${search}%`); where += ` AND (p.title ILIKE $${params.length} OR p.subtitle ILIKE $${params.length} OR p.description ILIKE $${params.length})`; }
+  const collection = cleanString(q.collection, { max: 80 });
+  if (collection) {
+    params.push(collection);
+    where += ` AND EXISTS (SELECT 1 FROM product_collections pc JOIN collections c ON c.id = pc.collection_id
+                            WHERE pc.product_id = p.id AND c.slug = $${params.length})`;
+  }
 
   params.push(PAGE_SIZE, (page - 1) * PAGE_SIZE);
   const r = await db.query(
@@ -76,6 +82,8 @@ async function detail(req, res, params) {
       images: p.images || [],
       options: p.options || [],
       tags: p.tags || [],
+      seoTitle: p.seo_title || "",
+      seoDescription: p.seo_description || "",
       variants: vr.rows.map((v) => ({
         id: v.id,
         sku: v.sku,

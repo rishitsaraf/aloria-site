@@ -15,7 +15,8 @@ let quoting = null;
 const $ = (id) => document.getElementById(id);
 
 async function refreshQuote() {
-  const my = (quoting = Store.api("checkout/quote", { method: "POST", body: { discountCode: appliedCode } }));
+  const country = $("coCountry") && $("coCountry").value;
+  const my = (quoting = Store.api("checkout/quote", { method: "POST", body: { discountCode: appliedCode, country } }));
   let q;
   try {
     q = await my;
@@ -47,6 +48,9 @@ async function refreshQuote() {
     </div>`).join("");
   $("sumSubtotal").textContent = Store.money(q.cart.subtotalCents, q.cart.currency);
   $("sumShipping").textContent = q.shippingCents ? Store.money(q.shippingCents, q.cart.currency) : "Free";
+  $("taxRow").hidden = !q.taxCents;
+  $("taxLabel").textContent = q.taxPct ? `Tax (${q.taxPct}%)` : "Tax";
+  $("sumTax").textContent = Store.money(q.taxCents, q.cart.currency);
   $("sumTotal").textContent = Store.money(q.totalCents, q.cart.currency);
   $("discountRow").hidden = !q.discountCents;
   $("sumDiscount").textContent = `−${Store.money(q.discountCents, q.cart.currency)}`;
@@ -123,6 +127,7 @@ async function placeOrder(ev) {
     $("discountMsg").textContent = "";
     refreshQuote();
   };
+  $("coCountry").addEventListener("change", refreshQuote); // tax can differ by country
   $("coEmail").addEventListener("blur", captureEmailEarly);
   $("checkoutForm").addEventListener("submit", placeOrder);
 })();

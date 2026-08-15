@@ -31,12 +31,24 @@
   <aside class="admin-side">
     <div class="brand">ALORIA<small>Atelier Console</small></div>
     <a href="#/dashboard" data-nav="dashboard">Dashboard</a>
+    <div class="side-label">Catalog</div>
     <a href="#/products" data-nav="products">Products</a>
+    <a href="#/inventory" data-nav="inventory">Inventory</a>
+    <a href="#/collections" data-nav="collections">Collections</a>
+    <div class="side-label">Sales</div>
     <a href="#/orders" data-nav="orders">Orders</a>
     <a href="#/carts" data-nav="carts">Abandoned</a>
     <a href="#/customers" data-nav="customers">Customers</a>
     <a href="#/discounts" data-nav="discounts">Discounts</a>
+    <div class="side-label">Site</div>
+    <a href="#/content" data-nav="content">Content</a>
+    <a href="#/pages" data-nav="pages">Pages</a>
     <a href="#/waitlist" data-nav="waitlist">Waitlist</a>
+    <div class="side-label">System</div>
+    <a href="#/settings" data-nav="settings" data-min-role="admin">Settings</a>
+    <a href="#/staff" data-nav="staff" data-min-role="admin">Staff</a>
+    <a href="#/emails" data-nav="emails">Emails</a>
+    <a href="#/security" data-nav="security">Security</a>
     <div class="spacer"></div>
     <div class="who" id="adminWho"></div>
     <button type="button" id="adminLogout">Sign out</button>
@@ -45,6 +57,7 @@
 </div>
 
 <script src="/js/store.js"></script>
+<script src="/js/admin-ext.js"></script>
 <script src="/js/admin.js"></script>
 </body>
 </html>

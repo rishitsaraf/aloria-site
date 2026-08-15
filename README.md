@@ -9,11 +9,26 @@ Postgres. No framework, no build step.
 | Area | URL | What it is |
 |---|---|---|
 | Teaser | `/` | Coming-soon page, waitlist capture, gate into the hub |
-| **Storefront** | `/shop` | Landing (hero, category tiles, signature row), search, category filters, PDPs with stone-color swatches + smart variant availability + cross-sell, bag, checkout, order confirmation |
-| Account | `/account` | Customer sign-in / registration / password reset / order history |
-| **CMS** | `/admin` | Atelier Console: metrics + 14-day revenue trend, product & variant management, orders (CSV export, shipping-confirmation emails), customers, abandoned bags, discounts, waitlist |
+| **Storefront** | `/shop` | CMS-driven landing (announcement bar, hero, category tiles), search, category + collection filters, PDPs with stone-color swatches + smart variant availability + cross-sell, bag, checkout with tax, order confirmation with tracking |
+| Pages | `/p?slug=…` | CMS-authored static pages (shipping, returns, privacy…) linked in the footer |
+| Account | `/account` | Customer sign-in / registration / password reset / 2FA-aware login / order history |
+| **CMS** | `/admin` | Atelier Console — see below |
 | SEO | `/sitemap.xml`, `/robots.txt` | Generated from the live catalog; PDPs carry schema.org Product JSON-LD |
 | Brand hub | `/hub` | Private brand book (still gated by the shared password) |
+
+## The Atelier Console (CMS)
+
+- **Dashboard** — 7/14/30/90-day ranges with previous-period deltas, revenue trend chart, best sellers, revenue by category, conversion funnel (bags → email → checkout → paid) and abandoned-bag recovery stats.
+- **Products** — editor with one-click **standard Aloria axes** (Plating: Gold/Rhodium · Stone Shape: Round/Oval/Pear/Emerald Cut/Heart · Stone Color: Crystal/Emerald/Sapphire/Ruby) feeding the variant-matrix generator; per-product SEO fields; scheduled publishing; image upload (Vercel Blob); duplicate-as-draft; bulk activate/archive/feature/price-change; catalog CSV export → spreadsheet → import.
+- **Inventory** — every variant in one table with quick ±/set adjustments and a full movement log (sales, restocks, edits, imports — who, when, why).
+- **Orders** — status/date/SKU filters, CSV export, manual order entry by SKU, per-order timeline (status changes, notes, emails) with internal notes, carrier + tracking number captured on fulfilment (included in the shipping email), packing-slip print view, re-send confirmation.
+- **Customers** — detail pages with lifetime value, order history, tags, internal notes, and account disable.
+- **Abandoned bags** — auto recovery email (+ optional second reminder), manual re-sends, recovered-revenue attribution.
+- **Discounts** — percent / fixed / free-shipping codes with start & expiry dates, total usage limits, once-per-customer, and live usage counts.
+- **Content & Pages** — announcement bar, landing hero and category tiles edited in the CMS; markdown-lite static pages published to the storefront footer.
+- **Settings** — shipping rates, free-shipping threshold, abandoned-cart timing, tax (default % + per-country) stored in the DB; integration status panel (Stripe / Resend / Blob / cron).
+- **Staff & security** — viewer/editor/admin roles, staff invites, an audit log of every CMS write, TOTP two-factor auth, and sign-out-everywhere.
+- **Emails** — preview every transactional template with sample data and send yourself a test; waitlist CSV export + broadcast.
 
 ## Structure
 
@@ -47,6 +62,7 @@ vercel.json          cleanUrls, hourly cron sweep, security headers
 | `SITE_URL` | recommended | Canonical base URL used in emails and Stripe redirects, e.g. `https://aloria.example` |
 | `STRIPE_SECRET_KEY` | optional | Enables real card payments via Stripe Checkout (REST, no SDK). Without it, checkout runs in "test order" mode so the whole flow still works. |
 | `RESEND_API_KEY` + `EMAIL_FROM` | optional | Transactional email (order confirmations, abandoned-bag recovery). Without it, emails are logged to Vercel logs instead of sent. |
+| `BLOB_READ_WRITE_TOKEN` | optional | Set automatically when you add a Vercel Blob store — enables image uploads from the CMS. |
 | `CRON_SECRET` | recommended | Protects `/api/store/cron/sweep`; Vercel sends it automatically as a Bearer token. |
 | `ALORIA_PASSWORD` | yes (hub) | Shared password for the private brand hub (unchanged). |
 | `ABANDONED_AFTER_MINUTES` | optional | Minutes of inactivity before a bag counts as abandoned (default 120). |

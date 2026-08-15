@@ -21,7 +21,17 @@ async function submitAuth(ev) {
   try {
     const body = { email: $("authEmail").value.trim(), password: $("authPass").value };
     if (mode === "register") body.name = $("authName").value.trim();
-    await Store.api(`auth/${mode}`, { method: "POST", body });
+    if (!$("totpField").hidden) body.code = $("authTotp").value.trim();
+    const r = await Store.api(`auth/${mode}`, { method: "POST", body });
+    if (r.requiresTotp) {
+      // account has 2FA — ask for the authenticator code and resubmit
+      $("totpField").hidden = false;
+      $("authTotp").focus();
+      $("authMsg").textContent = "Enter the 6-digit code from your authenticator app";
+      $("authMsg").className = "form-msg ok";
+      btn.disabled = false;
+      return;
+    }
     location.reload();
   } catch (e) {
     $("authMsg").textContent = e.message;
@@ -93,6 +103,12 @@ function bindResetFlows() {
   $("helloTitle").textContent = `Hello, ${(user.name || user.email).split(" ")[0]}`;
   $("accountEmail").textContent = user.email + (user.role === "admin" ? " · admin — open /admin for the CMS" : "");
   $("logoutBtn").onclick = async () => { await Store.api("auth/logout", { method: "POST" }); location.reload(); };
+  const outAll = document.createElement("button");
+  outAll.className = "btn ghost small";
+  outAll.style.marginLeft = "0.5rem";
+  outAll.textContent = "Sign out everywhere";
+  outAll.onclick = async () => { await Store.api("auth/logout-all", { method: "POST" }); location.reload(); };
+  $("logoutBtn").after(outAll);
 
   const { orders } = await Store.api("orders").catch(() => ({ orders: [] }));
   if (!orders.length) $("ordersEmpty").hidden = false;

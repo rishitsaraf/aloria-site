@@ -5,6 +5,7 @@
 const db = require("../lib/db");
 const auth = require("../lib/auth");
 const emailLib = require("../lib/email");
+const totp = require("../lib/totp");
 const { json, badRequest, cleanEmail, cleanString, rateLimit, clientIp, randomToken, sha256 } = require("../lib/http");
 const cartLib = require("./cartLib");
 
@@ -37,17 +38,39 @@ async function login(req, res) {
   await rateLimit(`login:${email}`, 10, 900);
 
   await auth.ensureAdminBootstrap();
-  const r = await db.query("SELECT id, email, name, role, password_hash FROM users WHERE email = $1", [email]);
+  const r = await db.query(
+    "SELECT id, email, name, role, password_hash, disabled, totp_enabled, totp_secret FROM users WHERE email = $1",
+    [email]
+  );
   const user = r.rows[0];
   // Hash even when the user is missing so timing doesn't reveal existence.
   const ok = user
     ? auth.verifyPassword(body.password, user.password_hash)
     : (auth.verifyPassword(body.password, "scrypt$00000000000000000000000000000000$00"), false);
   if (!ok) throw badRequest("Incorrect email or password");
+  if (user.disabled) throw badRequest("This account has been disabled — contact us if that seems wrong");
+
+  // Second factor for accounts that enabled it (password re-verified above).
+  if (user.totp_enabled) {
+    if (!body.code) {
+      json(res, 200, { ok: false, requiresTotp: true });
+      return;
+    }
+    await rateLimit(`totp:${email}`, 10, 900);
+    if (!totp.verify(user.totp_secret, body.code)) throw badRequest("That authentication code isn't right");
+  }
 
   await auth.createSession(req, res, user.id);
   await cartLib.attachCartToUser(req, user);
   json(res, 200, { ok: true, user: publicUser(user) });
+}
+
+/** Revoke every session for the signed-in user (incl. this one). */
+async function logoutAll(req, res) {
+  const user = await auth.requireUser(req);
+  await db.query("DELETE FROM sessions WHERE user_id = $1", [user.id]);
+  await auth.destroySession(req, res);
+  json(res, 200, { ok: true });
 }
 
 async function logout(req, res) {
@@ -107,7 +130,7 @@ async function reset(req, res) {
 }
 
 function publicUser(u) {
-  return { id: u.id, email: u.email, name: u.name, role: u.role };
+  return { id: u.id, email: u.email, name: u.name, role: u.role, totpEnabled: Boolean(u.totp_enabled) };
 }
 
-module.exports = { register, login, logout, me, forgot, reset, publicUser };
+module.exports = { register, login, logout, logoutAll, me, forgot, reset, publicUser };

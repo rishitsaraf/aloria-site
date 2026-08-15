@@ -182,6 +182,88 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   window_start TIMESTAMPTZ NOT NULL,
   count        INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS inventory_movements (
+  id         BIGSERIAL PRIMARY KEY,
+  variant_id BIGINT REFERENCES variants(id) ON DELETE SET NULL,
+  sku        TEXT NOT NULL DEFAULT '',
+  delta      INTEGER NOT NULL,
+  reason     TEXT NOT NULL DEFAULT 'manual', -- sale | restock | manual | import
+  note       TEXT NOT NULL DEFAULT '',
+  order_id   BIGINT REFERENCES orders(id) ON DELETE SET NULL,
+  user_id    BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_moves_variant ON inventory_movements(variant_id, created_at);
+
+CREATE TABLE IF NOT EXISTS order_events (
+  id         BIGSERIAL PRIMARY KEY,
+  order_id   BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  kind       TEXT NOT NULL, -- placed | status | note | email
+  data       JSONB NOT NULL DEFAULT '{}',
+  user_id    BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_events_order ON order_events(order_id, created_at);
+
+CREATE TABLE IF NOT EXISTS collections (
+  id          BIGSERIAL PRIMARY KEY,
+  slug        TEXT NOT NULL UNIQUE,
+  title       TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  image       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS product_collections (
+  product_id    BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  collection_id BIGINT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  PRIMARY KEY (product_id, collection_id)
+);
+
+CREATE TABLE IF NOT EXISTS pages (
+  id         BIGSERIAL PRIMARY KEY,
+  slug       TEXT NOT NULL UNIQUE,
+  title      TEXT NOT NULL,
+  body       TEXT NOT NULL DEFAULT '',
+  published  BOOLEAN NOT NULL DEFAULT false,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS admin_audit (
+  id         BIGSERIAL PRIMARY KEY,
+  user_id    BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  email      TEXT NOT NULL DEFAULT '',
+  method     TEXT NOT NULL,
+  path       TEXT NOT NULL,
+  summary    TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_time ON admin_audit(created_at);
+
+-- column additions for existing deployments (idempotent)
+ALTER TABLE products  ADD COLUMN IF NOT EXISTS seo_title TEXT NOT NULL DEFAULT '';
+ALTER TABLE products  ADD COLUMN IF NOT EXISTS seo_description TEXT NOT NULL DEFAULT '';
+ALTER TABLE products  ADD COLUMN IF NOT EXISTS publish_at TIMESTAMPTZ;
+ALTER TABLE orders    ADD COLUMN IF NOT EXISTS tracking_carrier TEXT NOT NULL DEFAULT '';
+ALTER TABLE orders    ADD COLUMN IF NOT EXISTS tracking_number TEXT NOT NULL DEFAULT '';
+ALTER TABLE orders    ADD COLUMN IF NOT EXISTS tax_cents INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS max_uses INTEGER;
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS once_per_customer BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS uses INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE discounts ADD COLUMN IF NOT EXISTS starts_at TIMESTAMPTZ;
+ALTER TABLE users     ADD COLUMN IF NOT EXISTS disabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users     ADD COLUMN IF NOT EXISTS notes TEXT NOT NULL DEFAULT '';
+ALTER TABLE users     ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE users     ADD COLUMN IF NOT EXISTS totp_secret TEXT;
+ALTER TABLE users     ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE carts     ADD COLUMN IF NOT EXISTS recovery_sent_count INTEGER NOT NULL DEFAULT 0;
 `;
 
 async function migrate() {

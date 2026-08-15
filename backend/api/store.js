@@ -1,34 +1,61 @@
 /* /api/store/* — single entry for the whole commerce API.
    Deployed via the catch-all shim api/store/[...route].js. Routes are
    declared as "METHOD pattern" pairs; ":name" segments capture params.
-   Admin routes are wrapped with requireAdmin; all mutating requests pass
-   the same-origin check (CSRF defence on top of SameSite cookies). */
 
+   CMS routes carry a minimum staff role — viewer (read), editor (operate),
+   admin (settings/staff/destructive) — and every non-GET staff call is
+   written to the admin audit log. All mutating requests pass the
+   same-origin check (CSRF defence on top of SameSite cookies). */
+
+const db = require("../lib/db");
 const { json, notFound, assertSameOrigin, matchRoute, HttpError } = require("../lib/http");
-const { requireAdmin } = require("../lib/auth");
+const { requireStaff } = require("../lib/auth");
 
 const authRoutes = require("../store/authRoutes");
 const catalog = require("../store/catalog");
+const content = require("../store/content");
 const cartRoutes = require("../store/cartRoutes");
 const checkout = require("../store/checkout");
 const admin = require("../store/admin");
+const adminInventory = require("../store/adminInventory");
+const adminOps = require("../store/adminOps");
+const adminContent = require("../store/adminContent");
+const adminStaff = require("../store/adminStaff");
 const seed = require("../store/seed");
 const cron = require("../store/cron");
+const sitemap = require("../store/sitemap");
 
-const adminWrap = (fn) => async (req, res, params) => { await requireAdmin(req); return fn(req, res, params); };
+/** Staff gate + audit trail. GETs need `viewer`; mutations default `editor`;
+    sensitive routes pass "admin" explicitly. */
+const staff = (fn, minRole) => async (req, res, params) => {
+  const min = minRole || (req.method === "GET" ? "viewer" : "editor");
+  const user = await requireStaff(req, min);
+  req.adminUser = user;
+  await fn(req, res, params);
+  if (req.method !== "GET") {
+    const pathname = new URL(req.url, "http://x").pathname;
+    db.query(
+      "INSERT INTO admin_audit (user_id, email, method, path) VALUES ($1, $2, $3, $4)",
+      [user.id, user.email, req.method, pathname.slice(0, 300)]
+    ).catch((e) => console.error("[audit]", e.message));
+  }
+};
 
 const ROUTES = [
   // auth & account
   ["POST", "auth/register", authRoutes.register],
   ["POST", "auth/login", authRoutes.login],
   ["POST", "auth/logout", authRoutes.logout],
+  ["POST", "auth/logout-all", authRoutes.logoutAll],
   ["GET", "auth/me", authRoutes.me],
   ["POST", "auth/forgot", authRoutes.forgot],
   ["POST", "auth/reset", authRoutes.reset],
 
-  // catalog (public)
+  // catalog & site content (public)
   ["GET", "products", catalog.list],
   ["GET", "products/:slug", catalog.detail],
+  ["GET", "content", content.content],
+  ["GET", "pages/:slug", content.pageDetail],
 
   // cart
   ["GET", "cart", cartRoutes.get],
@@ -47,28 +74,75 @@ const ROUTES = [
 
   // cron & seo
   ["GET", "cron/sweep", cron.sweep],
-  ["GET", "sitemap", require("../store/sitemap").sitemap],
-  ["GET", "robots", require("../store/sitemap").robots],
+  ["GET", "sitemap", sitemap.sitemap],
+  ["GET", "robots", sitemap.robots],
 
-  // admin CMS
-  ["GET", "admin/metrics", adminWrap(admin.metrics)],
-  ["GET", "admin/products", adminWrap(admin.listProducts)],
-  ["POST", "admin/products", adminWrap(admin.createProduct)],
-  ["GET", "admin/products/:id", adminWrap(admin.getProduct)],
-  ["PATCH", "admin/products/:id", adminWrap(admin.updateProduct)],
-  ["DELETE", "admin/products/:id", adminWrap(admin.deleteProduct)],
-  ["PUT", "admin/products/:id/variants", adminWrap(admin.putVariants)],
-  ["GET", "admin/orders", adminWrap(admin.listOrders)],
-  ["GET", "admin/orders/:id", adminWrap(admin.getOrder)],
-  ["PATCH", "admin/orders/:id", adminWrap(admin.updateOrder)],
-  ["GET", "admin/customers", adminWrap(admin.listCustomers)],
-  ["GET", "admin/carts/abandoned", adminWrap(admin.listAbandoned)],
-  ["POST", "admin/carts/:id/recovery-email", adminWrap(admin.sendRecovery)],
-  ["GET", "admin/discounts", adminWrap(admin.listDiscounts)],
-  ["POST", "admin/discounts", adminWrap(admin.createDiscount)],
-  ["DELETE", "admin/discounts/:code", adminWrap(admin.deleteDiscount)],
-  ["GET", "admin/waitlist", adminWrap(admin.listWaitlist)],
-  ["POST", "admin/seed", adminWrap(seed.seed)],
+  // ---- CMS: dashboard & catalog
+  ["GET", "admin/metrics", staff(admin.metrics)],
+  ["GET", "admin/products", staff(admin.listProducts)],
+  ["POST", "admin/products", staff(admin.createProduct)],
+  ["POST", "admin/products/bulk", staff(adminOps.bulkProducts)],
+  ["GET", "admin/products/:id", staff(admin.getProduct)],
+  ["PATCH", "admin/products/:id", staff(admin.updateProduct)],
+  ["DELETE", "admin/products/:id", staff(admin.deleteProduct, "admin")],
+  ["PUT", "admin/products/:id/variants", staff(admin.putVariants)],
+  ["POST", "admin/products/:id/duplicate", staff(adminOps.duplicateProduct)],
+  ["GET", "admin/catalog/export", staff(adminOps.exportCatalog)],
+  ["POST", "admin/catalog/import", staff(adminOps.importCatalog)],
+
+  // ---- CMS: inventory
+  ["GET", "admin/inventory", staff(adminInventory.list)],
+  ["PATCH", "admin/inventory/:id", staff(adminInventory.adjust)],
+  ["GET", "admin/inventory/movements", staff(adminInventory.movements)],
+
+  // ---- CMS: orders
+  ["GET", "admin/orders", staff(admin.listOrders)],
+  ["POST", "admin/orders", staff(adminOps.createManualOrder)],
+  ["GET", "admin/orders/:id", staff(admin.getOrder)],
+  ["PATCH", "admin/orders/:id", staff(admin.updateOrder)],
+  ["POST", "admin/orders/:id/notes", staff(admin.addOrderNote)],
+  ["POST", "admin/orders/:id/resend-confirmation", staff(admin.resendConfirmation)],
+
+  // ---- CMS: customers & carts
+  ["GET", "admin/customers", staff(admin.listCustomers)],
+  ["GET", "admin/customers/:id", staff(admin.getCustomer)],
+  ["PATCH", "admin/customers/:id", staff(admin.updateCustomer)],
+  ["GET", "admin/carts/abandoned", staff(admin.listAbandoned)],
+  ["POST", "admin/carts/:id/recovery-email", staff(admin.sendRecovery)],
+
+  // ---- CMS: marketing
+  ["GET", "admin/discounts", staff(admin.listDiscounts)],
+  ["POST", "admin/discounts", staff(admin.createDiscount)],
+  ["DELETE", "admin/discounts/:code", staff(admin.deleteDiscount)],
+  ["GET", "admin/waitlist", staff(admin.listWaitlist)],
+  ["POST", "admin/waitlist/broadcast", staff(adminOps.broadcastWaitlist, "admin")],
+
+  // ---- CMS: content, pages, collections
+  ["PUT", "admin/content", staff(adminContent.putContent)],
+  ["GET", "admin/pages", staff(adminContent.listPages)],
+  ["POST", "admin/pages", staff(adminContent.createPage)],
+  ["GET", "admin/pages/:id", staff(adminContent.getPage)],
+  ["PATCH", "admin/pages/:id", staff(adminContent.updatePage)],
+  ["DELETE", "admin/pages/:id", staff(adminContent.deletePage)],
+  ["GET", "admin/collections", staff(adminContent.listCollections)],
+  ["POST", "admin/collections", staff(adminContent.createCollection)],
+  ["PATCH", "admin/collections/:id", staff(adminContent.updateCollection)],
+  ["DELETE", "admin/collections/:id", staff(adminContent.deleteCollection)],
+
+  // ---- CMS: settings, staff, security, tools
+  ["GET", "admin/settings", staff(adminContent.getSettings)],
+  ["PUT", "admin/settings", staff(adminContent.putSettings, "admin")],
+  ["GET", "admin/staff", staff(adminStaff.listStaff, "admin")],
+  ["POST", "admin/staff", staff(adminStaff.inviteStaff, "admin")],
+  ["PATCH", "admin/staff/:id", staff(adminStaff.updateStaff, "admin")],
+  ["GET", "admin/audit", staff(adminStaff.listAudit, "admin")],
+  ["POST", "admin/totp/setup", staff(adminStaff.totpSetup, "viewer")],
+  ["POST", "admin/totp/enable", staff(adminStaff.totpEnable, "viewer")],
+  ["POST", "admin/totp/disable", staff(adminStaff.totpDisable, "viewer")],
+  ["POST", "admin/uploads", staff(adminOps.upload)],
+  ["GET", "admin/emails/:template/preview", staff(adminOps.previewEmail)],
+  ["POST", "admin/emails/:template/test", staff(adminOps.testEmail)],
+  ["POST", "admin/seed", staff(seed.seed, "admin")],
 ];
 
 module.exports = async (req, res) => {

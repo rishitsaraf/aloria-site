@@ -56,7 +56,7 @@ function itemRows(items, currency) {
     </tr>`).join("");
 }
 
-async function sendOrderConfirmation(order, items) {
+function buildOrderConfirmation(order, items) {
   const html = layout(`Order ${order.number} confirmed`, `
     <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
       Thank you${order.shipping_name ? `, ${escapeHtml(order.shipping_name.split(" ")[0])}` : ""} — your order is confirmed.
@@ -77,10 +77,14 @@ async function sendOrderConfirmation(order, items) {
          style="background:#14120f;color:#ffffff;text-decoration:none;padding:12px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">View order</a>
     </p>`);
   const text = `Your Aloria order ${order.number} is confirmed. Total ${money(order.total_cents, order.currency)}.`;
-  return send({ to: order.email, subject: `Your Aloria order ${order.number}`, html, text });
+  return { subject: `Your Aloria order ${order.number}`, html, text };
 }
 
-async function sendCartRecovery(cart, items, totalCents) {
+async function sendOrderConfirmation(order, items) {
+  return send({ to: order.email, ...buildOrderConfirmation(order, items) });
+}
+
+function buildCartRecovery(cart, items, totalCents) {
   const link = siteUrl(`/cart?recover=${encodeURIComponent(cart.recovery_token)}`);
   const html = layout("You left something sparkling behind", `
     <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
@@ -94,10 +98,14 @@ async function sendCartRecovery(cart, items, totalCents) {
       <a href="${link}" style="background:#b08d3e;color:#ffffff;text-decoration:none;padding:12px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">Return to your bag</a>
     </p>`);
   const text = `Your Aloria bag is saved. Pick up where you left off: ${link}`;
-  return send({ to: cart.email, subject: "Your Aloria bag is waiting", html, text });
+  return { subject: "Your Aloria bag is waiting", html, text };
 }
 
-async function sendPasswordReset(to, token) {
+async function sendCartRecovery(cart, items, totalCents) {
+  return send({ to: cart.email, ...buildCartRecovery(cart, items, totalCents) });
+}
+
+function buildPasswordReset(token) {
   const link = siteUrl(`/account?reset=${encodeURIComponent(token)}`);
   const html = layout("Reset your password", `
     <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
@@ -107,10 +115,14 @@ async function sendPasswordReset(to, token) {
     <p style="text-align:center;margin:26px 0 6px;">
       <a href="${link}" style="background:#14120f;color:#ffffff;text-decoration:none;padding:12px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">Choose a new password</a>
     </p>`);
-  return send({ to, subject: "Reset your Aloria password", html, text: `Reset your Aloria password (valid 1 hour): ${link}` });
+  return { subject: "Reset your Aloria password", html, text: `Reset your Aloria password (valid 1 hour): ${link}` };
 }
 
-async function sendShippingConfirmation(order, items) {
+async function sendPasswordReset(to, token) {
+  return send({ to, ...buildPasswordReset(token) });
+}
+
+function buildShippingConfirmation(order, items) {
   const html = layout(`Order ${order.number} is on its way`, `
     <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
       Good news${order.shipping_name ? `, ${escapeHtml(order.shipping_name.split(" ")[0])}` : ""} —
@@ -121,7 +133,22 @@ async function sendShippingConfirmation(order, items) {
       <a href="${siteUrl(`/checkout/thanks?order=${encodeURIComponent(order.number)}&key=${encodeURIComponent(order.public_token)}`)}"
          style="background:#b08d3e;color:#ffffff;text-decoration:none;padding:12px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">View order</a>
     </p>`);
-  return send({ to: order.email, subject: `Your Aloria order ${order.number} has shipped`, html, text: `Your Aloria order ${order.number} has shipped.` });
+  return { subject: `Your Aloria order ${order.number} has shipped`, html, text: `Your Aloria order ${order.number} has shipped.` };
 }
 
-module.exports = { send, sendOrderConfirmation, sendCartRecovery, sendPasswordReset, sendShippingConfirmation, siteUrl };
+async function sendShippingConfirmation(order, items) {
+  return send({ to: order.email, ...buildShippingConfirmation(order, items) });
+}
+
+/* Broadcast/announcement wrapper — plain message in the brand frame. */
+function buildAnnouncement(subject, message) {
+  const paragraphs = String(message).split(/\n\s*\n/).map((p) =>
+    `<p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">${escapeHtml(p).replace(/\n/g, "<br>")}</p>`).join("");
+  return { subject, html: layout(subject, paragraphs), text: message };
+}
+
+module.exports = {
+  send, siteUrl,
+  sendOrderConfirmation, sendCartRecovery, sendPasswordReset, sendShippingConfirmation,
+  buildOrderConfirmation, buildCartRecovery, buildPasswordReset, buildShippingConfirmation, buildAnnouncement,
+};

@@ -239,3 +239,26 @@
 
 /* toast action link */
 .toast a { color: var(--gold-bright); margin-left: 0.7rem; }
+
+/* ============================================================
+   Round 3 — announcement bar, footer links, collections, tax
+   ============================================================ */
+.announce-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 51;
+  background: var(--ink); color: #f0e9d8; text-align: center;
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase;
+  padding: 0.5rem 1rem;
+}
+body.has-announce .hub-nav { top: 29px; }
+body.has-announce .store-main { padding-top: 8.2rem; }
+@media (max-width: 760px) { body.has-announce .store-main { padding-top: 6.8rem; } }
+
+.foot-links { margin-top: 1.2rem; display: flex; gap: 1.4rem; justify-content: center; flex-wrap: wrap; }
+.foot-links a { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+.foot-links a:hover { color: var(--gold); }
+
+.page-body { max-width: 680px; }
+.page-body h2, .page-body h3 { margin: 1.6rem 0 0.6rem; }
+.page-body p { margin-bottom: 0.9rem; color: var(--ink-soft); font-size: 0.95rem; }
+
+.filter-row .filter-btn.coll { border-style: dashed; }

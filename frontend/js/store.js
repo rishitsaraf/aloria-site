@@ -56,6 +56,35 @@ const Store = {
     el._t = setTimeout(() => el.classList.remove("show"), action ? 4200 : 2600);
   },
 
+  /** Site content (announcement, hero, tiles, collections, footer pages) —
+      fetched once per page and shared. */
+  content() {
+    if (!Store._content) {
+      Store._content = Store.api("content").catch(() => ({
+        announcement: { text: "", enabled: false }, hero: null, tiles: null, collections: [], pages: [],
+      }));
+    }
+    return Store._content;
+  },
+
+  /* minimal safe markdown: escapes first, then ##/###, **bold**, *italic*,
+     [text](https://…) links and blank-line paragraphs */
+  mdToHtml(src) {
+    const esc = Store.esc(src);
+    return esc.split(/\n\s*\n/).map((block) => {
+      let b = block.trim();
+      if (!b) return "";
+      if (b.startsWith("### ")) return `<h3 class="serif">${b.slice(4)}</h3>`;
+      if (b.startsWith("## ")) return `<h2 class="serif">${b.slice(3)}</h2>`;
+      b = b
+        .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+        .replace(/\*([^*]+)\*/g, "<i>$1</i>")
+        .replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+|\/[^)\s]*)\)/g, '<a href="$2">$1</a>')
+        .replace(/\n/g, "<br>");
+      return `<p>${b}</p>`;
+    }).join("\n");
+  },
+
   nav(active = "") {
     const links = [
       ["shop", "/shop", "Shop"],
@@ -73,6 +102,15 @@ const Store = {
         <a href="/cart" class="bag-link">Bag<span class="bag-badge" id="bagBadge"></span></a>
       </div>`;
     document.body.prepend(el);
+    Store.content().then((c) => {
+      if (c.announcement && c.announcement.enabled && c.announcement.text) {
+        const bar = document.createElement("div");
+        bar.className = "announce-bar";
+        bar.textContent = c.announcement.text;
+        document.body.prepend(bar);
+        document.body.classList.add("has-announce");
+      }
+    });
     Store.refreshBadge();
     Store.api("auth/me").then(({ user }) => {
       const a = document.getElementById("navAccount");
@@ -92,7 +130,14 @@ const Store = {
   footer() {
     const f = document.createElement("footer");
     f.className = "hub-footer";
-    f.innerHTML = `<div class="brand">ALORIA</div><p>Stackable · Customisable · Yours</p>`;
+    f.innerHTML = `<div class="brand">ALORIA</div><p>Stackable · Customisable · Yours</p><div class="foot-links" id="footLinks"></div>`;
     document.body.appendChild(f);
+    Store.content().then((c) => {
+      const links = document.getElementById("footLinks");
+      if (links && c.pages && c.pages.length) {
+        links.innerHTML = c.pages.map((p) =>
+          `<a href="/p?slug=${encodeURIComponent(p.slug)}">${Store.esc(p.title)}</a>`).join("");
+      }
+    });
   },
 };

@@ -64,14 +64,15 @@ async function destroySession(req, res) {
   setCookie(req, res, SESSION_COOKIE, "", 0);
 }
 
-/** Returns the signed-in user row or null. Never throws for guests. */
+/** Returns the signed-in user row or null. Never throws for guests.
+    Disabled accounts are treated as signed out immediately. */
 async function currentUser(req) {
   const token = parseCookies(req)[SESSION_COOKIE];
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
   const r = await db.query(
-    `SELECT u.id, u.email, u.name, u.role, u.created_at
+    `SELECT u.id, u.email, u.name, u.role, u.created_at, u.totp_enabled
        FROM sessions s JOIN users u ON u.id = s.user_id
-      WHERE s.token_hash = $1 AND s.expires_at > now()`,
+      WHERE s.token_hash = $1 AND s.expires_at > now() AND NOT u.disabled`,
     [sha256(token)]
   );
   return r.rows[0] || null;
@@ -83,10 +84,21 @@ async function requireUser(req) {
   return user;
 }
 
-async function requireAdmin(req) {
+/* Staff roles: viewer (read the CMS) < editor (run the shop) < admin (owns
+   settings, staff, and destructive actions). Customers rank 0. */
+const ROLE_RANK = { customer: 0, viewer: 1, editor: 2, admin: 3 };
+const isStaff = (user) => ROLE_RANK[user.role] >= ROLE_RANK.viewer;
+
+async function requireStaff(req, minRole = "viewer") {
   const user = await requireUser(req);
-  if (user.role !== "admin") throw forbidden("Admin access required");
+  if ((ROLE_RANK[user.role] || 0) < ROLE_RANK[minRole]) {
+    throw forbidden(user.role === "customer" ? "Admin access required" : `This action needs the ${minRole} role`);
+  }
   return user;
+}
+
+async function requireAdmin(req) {
+  return requireStaff(req, "admin");
 }
 
 /** Opportunistic cleanup of expired sessions (cheap, run from cron). */
@@ -97,6 +109,6 @@ async function pruneSessions() {
 }
 
 module.exports = {
-  SESSION_COOKIE, hashPassword, verifyPassword, ensureAdminBootstrap,
-  createSession, destroySession, currentUser, requireUser, requireAdmin, pruneSessions,
+  SESSION_COOKIE, ROLE_RANK, isStaff, hashPassword, verifyPassword, ensureAdminBootstrap,
+  createSession, destroySession, currentUser, requireUser, requireStaff, requireAdmin, pruneSessions,
 };

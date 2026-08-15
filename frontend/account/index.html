@@ -29,6 +29,7 @@
       <div class="field" id="nameField" hidden><label for="authName">Name</label><input id="authName" autocomplete="name"></div>
       <div class="field"><label for="authEmail">Email</label><input id="authEmail" type="email" required autocomplete="email"></div>
       <div class="field"><label for="authPass">Password</label><input id="authPass" type="password" required minlength="8" autocomplete="current-password"></div>
+      <div class="field" id="totpField" hidden><label for="authTotp">Authenticator code</label><input id="authTotp" inputmode="numeric" autocomplete="one-time-code" placeholder="123 456"></div>
       <button class="btn wide" id="authBtn" type="submit">Sign in</button>
       <div class="form-msg" id="authMsg"></div>
       <p style="margin-top:1rem"><a href="#" id="forgotLink" class="mono" style="font-size:0.62rem">Forgot your password?</a></p>

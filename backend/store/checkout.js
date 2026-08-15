@@ -7,32 +7,52 @@
 
 const db = require("../lib/db");
 const authLib = require("../lib/auth");
+const settings = require("../lib/settings");
 const cartLib = require("./cartLib");
 const email = require("../lib/email");
 const {
   json, badRequest, notFound, cleanEmail, cleanString, rateLimit, clientIp,
 } = require("../lib/http");
 
-const FREE_SHIPPING_CENTS = parseInt(process.env.FREE_SHIPPING_CENTS, 10) || 7500;
-const SHIPPING_FLAT_CENTS = parseInt(process.env.SHIPPING_FLAT_CENTS, 10) || 800;
-
-function shippingFor(subtotalAfterDiscount) {
-  return subtotalAfterDiscount >= FREE_SHIPPING_CENTS ? 0 : SHIPPING_FLAT_CENTS;
+async function shippingRules() {
+  return {
+    flat: await settings.get("shipping.flat_cents"),
+    freeThreshold: await settings.get("shipping.free_threshold_cents"),
+  };
 }
 
-async function resolveDiscount(code, subtotalCents) {
-  if (!code) return { code: null, cents: 0 };
+async function taxPctFor(country) {
+  const byCountry = (await settings.get("tax.by_country")) || {};
+  const pct = byCountry[String(country || "").toUpperCase()];
+  return typeof pct === "number" ? pct : (await settings.get("tax.default_pct")) || 0;
+}
+
+/** Validate a code and compute its effect. Per-customer limits are enforced
+    at order time (when we know the email); everything else applies here too. */
+async function resolveDiscount(code, subtotalCents, buyerEmail = null) {
+  if (!code) return { code: null, cents: 0, freeShipping: false };
   const r = await db.query(
-    `SELECT * FROM discounts WHERE code = $1 AND active AND (expires_at IS NULL OR expires_at > now())`,
+    `SELECT * FROM discounts WHERE code = $1 AND active
+        AND (expires_at IS NULL OR expires_at > now())
+        AND (starts_at IS NULL OR starts_at <= now())`,
     [code.toUpperCase()]
   );
   const d = r.rows[0];
   if (!d) throw badRequest("That discount code isn't valid");
+  if (d.max_uses != null && d.uses >= d.max_uses) throw badRequest("That code has been fully redeemed");
   if (subtotalCents < d.min_cents) throw badRequest("Your bag doesn't meet the minimum for this code");
+  if (buyerEmail && d.once_per_customer) {
+    const used = await db.query(
+      `SELECT 1 FROM orders WHERE discount_code = $1 AND email = $2 AND status NOT IN ('cancelled') LIMIT 1`,
+      [d.code, buyerEmail]
+    );
+    if (used.rows.length) throw badRequest("You've already used this code");
+  }
+  if (d.kind === "free_shipping") return { code: d.code, cents: 0, freeShipping: true };
   const cents = d.kind === "percent"
     ? Math.floor((subtotalCents * Math.min(d.value, 100)) / 100)
     : Math.min(d.value, subtotalCents);
-  return { code: d.code, cents };
+  return { code: d.code, cents, freeShipping: false };
 }
 
 function cleanAddress(raw) {
@@ -52,18 +72,25 @@ function cleanAddress(raw) {
 async function quote(req, res) {
   const cart = await cartLib.findCartByCookie(req);
   const payload = await cartLib.cartPayload(cart);
-  let discount = { code: null, cents: 0 };
+  const rules = await shippingRules();
+  let discount = { code: null, cents: 0, freeShipping: false };
   const code = cleanString((req.body || {}).discountCode, { max: 40 });
   if (code && payload.subtotalCents > 0) discount = await resolveDiscount(code, payload.subtotalCents);
   const afterDiscount = payload.subtotalCents - discount.cents;
-  const shipping = payload.subtotalCents > 0 ? shippingFor(afterDiscount) : 0;
+  const shipping = payload.subtotalCents > 0 && !discount.freeShipping
+    ? (afterDiscount >= rules.freeThreshold ? 0 : rules.flat) : 0;
+  const taxPct = await taxPctFor((req.body || {}).country);
+  const tax = Math.round((afterDiscount * taxPct) / 100);
   json(res, 200, {
     cart: payload,
     discountCents: discount.cents,
     discountCode: discount.code,
+    discountFreeShipping: discount.freeShipping,
     shippingCents: shipping,
-    totalCents: afterDiscount + shipping,
-    freeShippingThresholdCents: FREE_SHIPPING_CENTS,
+    taxCents: tax,
+    taxPct,
+    totalCents: afterDiscount + shipping + tax,
+    freeShippingThresholdCents: rules.freeThreshold,
     stripeEnabled: Boolean(process.env.STRIPE_SECRET_KEY),
   });
 }
@@ -84,7 +111,9 @@ async function create(req, res) {
   const items = payload.items.filter((i) => i.purchasable);
   if (items.length === 0) throw badRequest("Your bag is empty");
 
-  const discount = await resolveDiscount(cleanString(body.discountCode, { max: 40 }), payload.subtotalCents);
+  const discount = await resolveDiscount(cleanString(body.discountCode, { max: 40 }), payload.subtotalCents, buyerEmail);
+  const rules = await shippingRules();
+  const taxPct = await taxPctFor(address.country);
 
   // Reserve stock + create the order atomically.
   const order = await db.tx(async (client) => {
@@ -109,33 +138,45 @@ async function create(req, res) {
       subtotal += row.unit_cents * item.qty;
     }
     const discountCents = Math.min(discount.cents, subtotal);
-    const shippingCents = shippingFor(subtotal - discountCents);
-    const totalCents = subtotal - discountCents + shippingCents;
+    const afterDiscount = subtotal - discountCents;
+    const shippingCents = discount.freeShipping ? 0 : (afterDiscount >= rules.freeThreshold ? 0 : rules.flat);
+    const taxCents = Math.round((afterDiscount * taxPct) / 100);
+    const totalCents = afterDiscount + shippingCents + taxCents;
 
-    for (const item of items) {
-      await client.query("UPDATE variants SET stock = stock - $1, updated_at = now() WHERE id = $2", [item.qty, item.variantId]);
-    }
     const num = await client.query("SELECT nextval('order_number_seq') AS n");
     const number = `ALR-${num.rows[0].n}`;
     const publicToken = require("crypto").randomBytes(24).toString("hex");
     const or = await client.query(
       `INSERT INTO orders (number, public_token, user_id, cart_id, email, status, payment_method,
-                           subtotal_cents, shipping_cents, discount_cents, discount_code, total_cents,
+                           subtotal_cents, shipping_cents, discount_cents, discount_code, tax_cents, total_cents,
                            currency, shipping_name, shipping_address, from_recovered_cart)
-       VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
       [number, publicToken, user ? user.id : null, cart.id, buyerEmail, paymentMethod,
-       subtotal, shippingCents, discountCents, discount.code, totalCents,
+       subtotal, shippingCents, discountCents, discount.code, taxCents, totalCents,
        payload.currency, name, JSON.stringify(address), cart.recovered]
     );
+    const orderId = or.rows[0].id;
     for (const item of items) {
       const row = bySku.get(item.variantId);
+      await client.query("UPDATE variants SET stock = stock - $1, updated_at = now() WHERE id = $2", [item.qty, item.variantId]);
+      await client.query(
+        `INSERT INTO inventory_movements (variant_id, sku, delta, reason, order_id) VALUES ($1,$2,$3,'sale',$4)`,
+        [item.variantId, row.sku, -item.qty, orderId]
+      );
       await client.query(
         `INSERT INTO order_items (order_id, variant_id, product_title, variant_label, sku, image, unit_price_cents, qty)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [or.rows[0].id, item.variantId, row.title, Object.values(row.options || {}).join(" · "),
+        [orderId, item.variantId, row.title, Object.values(row.options || {}).join(" · "),
          row.sku, row.v_image || (row.images || [])[0] || null, row.unit_cents, item.qty]
       );
     }
+    if (discount.code) {
+      await client.query("UPDATE discounts SET uses = uses + 1 WHERE code = $1", [discount.code]);
+    }
+    await client.query(
+      `INSERT INTO order_events (order_id, kind, data) VALUES ($1, 'placed', $2)`,
+      [orderId, JSON.stringify({ paymentMethod, totalCents, recovered: cart.recovered })]
+    );
     await client.query("UPDATE carts SET status = 'converted', email = $2, updated_at = now() WHERE id = $1", [cart.id, buyerEmail]);
     return or.rows[0];
   });
@@ -157,9 +198,16 @@ async function markPaid(orderId, ref) {
   );
   const order = r.rows[0];
   if (!order) return null;
+  await db.query(
+    "INSERT INTO order_events (order_id, kind, data) VALUES ($1, 'status', $2)",
+    [order.id, JSON.stringify({ to: "paid", ref })]
+  );
   const items = (await db.query("SELECT * FROM order_items WHERE order_id = $1", [order.id])).rows;
-  try { await email.sendOrderConfirmation(order, items); }
-  catch (e) { console.error("[checkout] confirmation email failed:", e.message); }
+  try {
+    await email.sendOrderConfirmation(order, items);
+    await db.query("INSERT INTO order_events (order_id, kind, data) VALUES ($1, 'email', $2)",
+      [order.id, JSON.stringify({ template: "order_confirmation", to: order.email })]);
+  } catch (e) { console.error("[checkout] confirmation email failed:", e.message); }
   return order;
 }
 
@@ -276,6 +324,9 @@ function shapeOrder(o, items) {
     shippingCents: o.shipping_cents,
     discountCents: o.discount_cents,
     discountCode: o.discount_code,
+    taxCents: o.tax_cents || 0,
+    trackingCarrier: o.tracking_carrier || "",
+    trackingNumber: o.tracking_number || "",
     totalCents: o.total_cents,
     currency: o.currency,
     shippingName: o.shipping_name,
@@ -292,12 +343,18 @@ function shapeOrder(o, items) {
   };
 }
 
-/** Restock a cancelled/expired order's reserved inventory. */
+/** Restock a cancelled/expired order's reserved inventory (logged). */
 async function restockOrder(client, orderId) {
   await client.query(
     `UPDATE variants v SET stock = v.stock + oi.qty, updated_at = now()
        FROM order_items oi
       WHERE oi.order_id = $1 AND oi.variant_id = v.id`,
+    [orderId]
+  );
+  await client.query(
+    `INSERT INTO inventory_movements (variant_id, sku, delta, reason, order_id)
+     SELECT oi.variant_id, oi.sku, oi.qty, 'restock', $1 FROM order_items oi
+      WHERE oi.order_id = $1 AND oi.variant_id IS NOT NULL`,
     [orderId]
   );
 }

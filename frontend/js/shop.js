@@ -22,10 +22,44 @@ function cardHtml(p) {
     </a>`;
 }
 
+/* Landing hero + tiles are CMS content; |word| in the hero title renders
+   italic gold. Collections appear as extra filter chips. */
+async function applyContent() {
+  const c = await Store.content();
+  if (c.hero) {
+    const heroTitle = Store.esc(c.hero.title || "").replace(/\|([^|]+)\|/g, "<em>$1</em>");
+    document.querySelector(".shop-hero h2").innerHTML = heroTitle;
+    document.querySelector(".shop-hero p").textContent = c.hero.tagline || "";
+    if (c.hero.image) document.querySelector(".shop-hero img").src = c.hero.image;
+  }
+  if (Array.isArray(c.tiles)) {
+    document.querySelectorAll(".cat-tile").forEach((tile, i) => {
+      const t = c.tiles[i];
+      if (t && t.image) tile.querySelector("img").src = t.image;
+    });
+  }
+  const activeCollection = Store.qs("collection") || "";
+  if (c.collections && c.collections.length) {
+    const row = document.getElementById("filterRow");
+    for (const coll of c.collections) {
+      const b = document.createElement("button");
+      b.className = `filter-btn coll ${activeCollection === coll.slug ? "active" : ""}`;
+      b.textContent = coll.title;
+      b.onclick = () => { location.href = `/shop?collection=${encodeURIComponent(coll.slug)}`; };
+      row.appendChild(b);
+    }
+    if (activeCollection) {
+      const found = c.collections.find((x) => x.slug === activeCollection);
+      if (found) document.getElementById("shopTitle").textContent = found.title;
+    }
+  }
+}
+
 async function loadShop({ append = false } = {}) {
   const category = Store.qs("category") || "";
   const q = Store.qs("q") || "";
-  const landing = !category && !q;
+  const collection = Store.qs("collection") || "";
+  const landing = !category && !q && !collection;
 
   document.getElementById("landing").hidden = !landing;
   document.querySelectorAll(".filter-btn").forEach((b) => {
@@ -42,6 +76,7 @@ async function loadShop({ append = false } = {}) {
     const params = new URLSearchParams();
     if (category) params.set("category", category);
     if (q) params.set("q", q);
+    if (collection) params.set("collection", collection);
     params.set("page", String(page));
     const data = await Store.api(`products?${params}`);
     document.getElementById("shopCount").textContent = `${data.total} piece${data.total === 1 ? "" : "s"}`;
@@ -72,6 +107,7 @@ async function loadShop({ append = false } = {}) {
 
 Store.nav("shop");
 Store.footer();
+applyContent();
 loadShop();
 document.getElementById("loadMore").onclick = () => { page += 1; loadShop({ append: true }); };
 document.getElementById("searchForm").addEventListener("submit", (ev) => {

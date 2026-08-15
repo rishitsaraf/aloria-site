@@ -140,7 +140,7 @@ async function init() {
     $("pdpEmpty").hidden = false;
     return;
   }
-  document.title = `${product.title} — ALORIA`;
+  document.title = product.seoTitle || `${product.title} — ALORIA`;
   injectSeo();
   const catName = { ear: "Ear", neck: "Neck", rings: "Rings" }[product.category] || "Shop";
   const crumbs = $("crumbs");
@@ -170,7 +170,7 @@ async function init() {
 function injectSeo() {
   const meta = document.createElement("meta");
   meta.name = "description";
-  meta.content = `${product.subtitle}. ${product.description}`.slice(0, 155);
+  meta.content = product.seoDescription || `${product.subtitle}. ${product.description}`.slice(0, 155);
   document.head.appendChild(meta);
   const prices = product.variants.map((v) => v.priceCents / 100);
   const ld = {

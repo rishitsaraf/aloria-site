@@ -39,6 +39,11 @@ const $ = (id) => document.getElementById(id);
   $("tShipping").textContent = order.shippingCents ? Store.money(order.shippingCents, order.currency) : "Free";
   $("tDiscountRow").hidden = !order.discountCents;
   $("tDiscount").textContent = `−${Store.money(order.discountCents, order.currency)}`;
+  $("tTaxRow").hidden = !order.taxCents;
+  $("tTax").textContent = Store.money(order.taxCents, order.currency);
   $("tTotal").textContent = Store.money(order.totalCents, order.currency);
+  if (order.trackingNumber) {
+    $("tTracking").textContent = `Shipped via ${order.trackingCarrier || "carrier"} · ${order.trackingNumber}`;
+  }
   Store.refreshBadge(); // cart converted → badge clears
 })();
