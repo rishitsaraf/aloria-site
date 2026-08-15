@@ -44,6 +44,38 @@ function orderCard(o) {
     </div>`;
 }
 
+function showAuthCard(which) {
+  $("authForm").hidden = which !== "auth";
+  $("forgotForm").hidden = which !== "forgot";
+  $("resetForm").hidden = which !== "reset";
+  document.querySelector(".auth-tabs").style.display = which === "auth" ? "" : "none";
+  $("authTitle").textContent = which === "forgot" ? "Reset password"
+    : which === "reset" ? "New password"
+    : (mode === "login" ? "Sign in" : "Create account");
+}
+
+function bindResetFlows() {
+  $("forgotLink").onclick = (ev) => { ev.preventDefault(); showAuthCard("forgot"); };
+  $("backToLogin").onclick = (ev) => { ev.preventDefault(); showAuthCard("auth"); };
+  $("forgotForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const msg = $("forgotMsg");
+    try {
+      const r = await Store.api("auth/forgot", { method: "POST", body: { email: $("forgotEmail").value.trim() } });
+      msg.textContent = r.message || "If that account exists, a reset link is on its way";
+      msg.className = "form-msg ok";
+    } catch (e) { msg.textContent = e.message; msg.className = "form-msg err"; }
+  });
+  $("resetForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const msg = $("resetMsg");
+    try {
+      await Store.api("auth/reset", { method: "POST", body: { token: Store.qs("reset"), password: $("resetPass").value } });
+      location.href = "/account";
+    } catch (e) { msg.textContent = e.message; msg.className = "form-msg err"; }
+  });
+}
+
 (async () => {
   Store.nav("");
   Store.footer();
@@ -53,6 +85,8 @@ function orderCard(o) {
     $("tabLogin").onclick = () => setMode("login");
     $("tabRegister").onclick = () => setMode("register");
     $("authForm").addEventListener("submit", submitAuth);
+    bindResetFlows();
+    if (Store.qs("reset")) showAuthCard("reset");
     return;
   }
   $("accountView").hidden = false;

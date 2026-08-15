@@ -12,26 +12,39 @@ function variantFor(sel) {
   return product.variants.find((v) => product.options.every((o) => v.options[o.name] === sel[o.name]));
 }
 
-function anyVariantWith(partialSel) {
+/* A value is offered if an in-stock variant matches it PLUS everything else
+   already selected — so choosing Gold greys out combinations Gold can't make. */
+function valueAvailable(groupName, val) {
   return product.variants.some((v) =>
-    Object.entries(partialSel).every(([k, val]) => v.options[k] === val) && v.available);
+    v.available &&
+    v.options[groupName] === val &&
+    product.options.every((o) =>
+      o.name === groupName || !selection[o.name] || v.options[o.name] === selection[o.name]));
+}
+
+const SWATCHES = {
+  crystal: "sw-crystal", emerald: "sw-emerald", sapphire: "sw-sapphire",
+  ruby: "sw-ruby", pink: "sw-pink",
+};
+
+function optionButton(o, val) {
+  const active = selection[o.name] === val ? "active" : "";
+  const avail = valueAvailable(o.name, val) ? "" : "unavailable";
+  const swatch = /color/i.test(o.name) && SWATCHES[val.toLowerCase()];
+  if (swatch) {
+    return `<button type="button" class="opt-btn swatch ${swatch} ${active} ${avail}"
+      data-opt="${Store.esc(o.name)}" data-val="${Store.esc(val)}"
+      title="${Store.esc(val)}" aria-label="${Store.esc(val)}">${Store.esc(val)}</button>`;
+  }
+  return `<button type="button" class="opt-btn ${active} ${avail}"
+    data-opt="${Store.esc(o.name)}" data-val="${Store.esc(val)}">${Store.esc(val)}</button>`;
 }
 
 function renderOptions() {
   $("optGroups").innerHTML = product.options.map((o) => `
     <div class="opt-group" data-opt="${Store.esc(o.name)}">
       <div class="opt-name">${Store.esc(o.name)} — <b>${Store.esc(selection[o.name] || "choose")}</b></div>
-      <div class="opt-values">
-        ${o.values.map((val) => {
-          const probe = { ...selection, [o.name]: val };
-          const cls = [
-            "opt-btn",
-            selection[o.name] === val ? "active" : "",
-            anyVariantWith({ [o.name]: val }) ? "" : "unavailable",
-          ].join(" ").trim();
-          return `<button type="button" class="${cls}" data-opt="${Store.esc(o.name)}" data-val="${Store.esc(val)}">${Store.esc(val)}</button>`;
-        }).join("")}
-      </div>
+      <div class="opt-values">${o.values.map((val) => optionButton(o, val)).join("")}</div>
     </div>`).join("");
   document.querySelectorAll(".opt-btn").forEach((b) => {
     b.onclick = () => {
@@ -107,7 +120,7 @@ async function addToBag() {
   try {
     await Store.api("cart/items", { method: "POST", body: { variantId: v.id, qty } });
     Store.refreshBadge();
-    Store.toast(`Added to your bag — ${product.title}`);
+    Store.toast(`Added — ${product.title}`, { href: "/cart", label: "View bag →" });
     $("pdpMsg").textContent = "";
   } catch (e) {
     $("pdpMsg").textContent = e.message;
@@ -128,11 +141,19 @@ async function init() {
     return;
   }
   document.title = `${product.title} — ALORIA`;
+  injectSeo();
+  const catName = { ear: "Ear", neck: "Neck", rings: "Rings" }[product.category] || "Shop";
+  const crumbs = $("crumbs");
+  crumbs.hidden = false;
+  crumbs.innerHTML = `<a href="/shop">Shop</a><span class="sep">/</span>` +
+    `<a href="/shop?category=${product.category}">${catName}</a><span class="sep">/</span>` +
+    `<span aria-current="page">${Store.esc(product.title)}</span>`;
   $("pdp").hidden = false;
   $("pCat").textContent = { ear: "01 · Ear", neck: "02 · Neck", rings: "03 · Rings" }[product.category] || "";
   $("pTitle").textContent = product.title;
   $("pSub").textContent = product.subtitle;
   $("pDesc").textContent = product.description;
+  loadRelated();
 
   // preselect single-value options; leave real choices open
   for (const o of product.options) if (o.values.length === 1) selection[o.name] = o.values[0];
@@ -143,6 +164,57 @@ async function init() {
   $("addBtn").onclick = addToBag;
   $("qtyMinus").onclick = () => { $("qtyInput").value = Math.max(1, (parseInt($("qtyInput").value, 10) || 1) - 1); };
   $("qtyPlus").onclick = () => { $("qtyInput").value = Math.min(10, (parseInt($("qtyInput").value, 10) || 1) + 1); };
+}
+
+/* Meta description + schema.org Product markup (crawlers render JS). */
+function injectSeo() {
+  const meta = document.createElement("meta");
+  meta.name = "description";
+  meta.content = `${product.subtitle}. ${product.description}`.slice(0, 155);
+  document.head.appendChild(meta);
+  const prices = product.variants.map((v) => v.priceCents / 100);
+  const ld = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    description: product.description,
+    image: product.images.map((i) => new URL(i, location.origin).href),
+    brand: { "@type": "Brand", name: "Aloria" },
+    offers: {
+      "@type": "AggregateOffer",
+      priceCurrency: product.currency,
+      lowPrice: Math.min(...prices).toFixed(2),
+      highPrice: Math.max(...prices).toFixed(2),
+      offerCount: product.variants.length,
+      availability: product.variants.some((v) => v.available)
+        ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    },
+  };
+  const s = document.createElement("script");
+  s.type = "application/ld+json";
+  s.textContent = JSON.stringify(ld);
+  document.head.appendChild(s);
+}
+
+/* "Complete the stack" — other pieces from the same modular system. */
+async function loadRelated() {
+  try {
+    const data = await Store.api(`products?category=${encodeURIComponent(product.category)}`);
+    const others = data.products.filter((p) => p.slug !== product.slug).slice(0, 4);
+    if (!others.length) return;
+    $("relatedMore").href = `/shop?category=${product.category}`;
+    $("relatedGrid").innerHTML = others.map((p) => `
+      <a class="product-card" href="/shop/product?slug=${encodeURIComponent(p.slug)}">
+        <div class="ph">${p.image ? `<img src="${Store.esc(p.image)}" alt="${Store.esc(p.title)}" loading="lazy">` : ""}</div>
+        <div class="info">
+          <h3 class="serif">${Store.esc(p.title)}</h3>
+          <div class="price">${p.priceFromCents === p.priceToCents
+            ? Store.money(p.priceFromCents, p.currency)
+            : `From ${Store.money(p.priceFromCents, p.currency)}`}</div>
+        </div>
+      </a>`).join("");
+    $("related").hidden = false;
+  } catch (_) { /* cross-sell is optional */ }
 }
 
 Store.nav("shop");

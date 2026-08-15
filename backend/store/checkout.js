@@ -64,6 +64,7 @@ async function quote(req, res) {
     shippingCents: shipping,
     totalCents: afterDiscount + shipping,
     freeShippingThresholdCents: FREE_SHIPPING_CENTS,
+    stripeEnabled: Boolean(process.env.STRIPE_SECRET_KEY),
   });
 }
 

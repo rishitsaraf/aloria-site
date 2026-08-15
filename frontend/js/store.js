@@ -32,17 +32,28 @@ const Store = {
     return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   },
 
-  toast(msg) {
+  toast(msg, action) {
     let el = document.querySelector(".toast");
     if (!el) {
       el = document.createElement("div");
       el.className = "toast";
+      el.setAttribute("role", "status");
+      el.setAttribute("aria-live", "polite");
       document.body.appendChild(el);
     }
     el.textContent = msg;
+    if (action && action.href) {
+      const a = document.createElement("a");
+      a.href = action.href;
+      a.textContent = action.label || "Open";
+      el.appendChild(a);
+      el.style.pointerEvents = "auto";
+    } else {
+      el.style.pointerEvents = "";
+    }
     el.classList.add("show");
     clearTimeout(el._t);
-    el._t = setTimeout(() => el.classList.remove("show"), 2600);
+    el._t = setTimeout(() => el.classList.remove("show"), action ? 4200 : 2600);
   },
 
   nav(active = "") {

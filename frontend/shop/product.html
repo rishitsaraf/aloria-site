@@ -13,6 +13,7 @@
 <body>
 
 <main class="store-main">
+  <nav class="crumbs" id="crumbs" hidden aria-label="Breadcrumb"></nav>
   <div id="pdp" class="pdp" hidden>
     <div class="pdp-gallery">
       <div class="main"><img id="mainImg" alt=""></div>
@@ -41,6 +42,14 @@
     <div class="big">This piece slipped away</div>
     <p><a href="/shop">Back to the collection</a></p>
   </div>
+
+  <section class="related" id="related" hidden>
+    <div class="section-row">
+      <h2 class="serif">Complete the stack</h2>
+      <a href="/shop" id="relatedMore">View all →</a>
+    </div>
+    <div class="product-grid" id="relatedGrid"></div>
+  </section>
 </main>
 
 <script src="/js/store.js"></script>

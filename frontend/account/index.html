@@ -31,6 +31,22 @@
       <div class="field"><label for="authPass">Password</label><input id="authPass" type="password" required minlength="8" autocomplete="current-password"></div>
       <button class="btn wide" id="authBtn" type="submit">Sign in</button>
       <div class="form-msg" id="authMsg"></div>
+      <p style="margin-top:1rem"><a href="#" id="forgotLink" class="mono" style="font-size:0.62rem">Forgot your password?</a></p>
+    </form>
+
+    <form class="auth-card" id="forgotForm" hidden>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin-bottom:1.2rem">Enter your email and we'll send a reset link.</p>
+      <div class="field"><label for="forgotEmail">Email</label><input id="forgotEmail" type="email" required autocomplete="email"></div>
+      <button class="btn wide" type="submit">Send reset link</button>
+      <div class="form-msg" id="forgotMsg"></div>
+      <p style="margin-top:1rem"><a href="#" id="backToLogin" class="mono" style="font-size:0.62rem">← Back to sign in</a></p>
+    </form>
+
+    <form class="auth-card" id="resetForm" hidden>
+      <p style="color:var(--ink-soft);font-size:0.9rem;margin-bottom:1.2rem">Choose a new password for your account.</p>
+      <div class="field"><label for="resetPass">New password</label><input id="resetPass" type="password" required minlength="8" autocomplete="new-password"></div>
+      <button class="btn wide" type="submit">Set new password</button>
+      <div class="form-msg" id="resetMsg"></div>
     </form>
   </div>
 

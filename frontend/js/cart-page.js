@@ -1,7 +1,7 @@
 /* Bag page — line management + abandoned-bag email capture + recovery links.
    /cart?recover=TOKEN restores an emailed bag into this browser. */
 
-const FREE_SHIP_CENTS = 7500;
+let FREE_SHIP_CENTS = 7500; // refreshed from the server quote on load
 
 async function handleRecovery() {
   const token = Store.qs("recover");
@@ -98,8 +98,10 @@ async function saveEmail() {
   Store.footer();
   await handleRecovery();
   try {
-    const { cart } = await Store.api("cart");
-    render(cart);
+    // quote = cart + authoritative shipping rules in one round-trip
+    const q = await Store.api("checkout/quote", { method: "POST", body: {} });
+    FREE_SHIP_CENTS = q.freeShippingThresholdCents || FREE_SHIP_CENTS;
+    render(q.cart);
   } catch (e) {
     document.getElementById("cartEmpty").hidden = false;
   }

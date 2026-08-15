@@ -170,6 +170,13 @@ CREATE TABLE IF NOT EXISTS waitlist (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS password_resets (
+  token_hash TEXT PRIMARY KEY,
+  user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS rate_limits (
   key          TEXT PRIMARY KEY,
   window_start TIMESTAMPTZ NOT NULL,

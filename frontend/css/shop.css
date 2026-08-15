@@ -164,3 +164,78 @@
 /* ---------- free-shipping meter ---------- */
 .ship-meter { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; margin: 0.4rem 0 1rem; }
 .ship-meter i { display: block; height: 100%; background: var(--gold); transition: width 0.4s ease; }
+
+/* ============================================================
+   Round 2 — shop landing, search, swatch options, cross-sell
+   ============================================================ */
+
+/* landing hero */
+.shop-hero {
+  position: relative; border-radius: 8px; overflow: hidden; margin-bottom: 2.2rem;
+  min-height: 340px; display: flex; align-items: flex-end; background: var(--paper);
+}
+.shop-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.shop-hero .veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(13,12,10,0) 30%, rgba(13,12,10,0.62)); }
+.shop-hero .hero-inner { position: relative; padding: 2rem; color: #fff; }
+.shop-hero h2 { font-size: clamp(1.7rem, 4.5vw, 2.7rem); font-weight: 400; }
+.shop-hero h2 em { font-style: italic; color: var(--gold-bright); }
+.shop-hero p { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.2em; text-transform: uppercase; color: #e9e0cb; margin-top: 0.5rem; }
+@media (max-width: 760px) { .shop-hero { min-height: 240px; } .shop-hero .hero-inner { padding: 1.2rem; } }
+
+/* category tiles */
+.cat-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; margin-bottom: 2.6rem; }
+@media (max-width: 640px) { .cat-tiles { grid-template-columns: 1fr; } }
+.cat-tile { position: relative; border-radius: 6px; overflow: hidden; aspect-ratio: 4/3; display: block; }
+.cat-tile img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+.cat-tile:hover img { transform: scale(1.05); }
+.cat-tile .ct-label {
+  position: absolute; left: 0.9rem; bottom: 0.8rem; color: #fff;
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.22em; text-transform: uppercase;
+  background: rgba(20,18,15,0.55); padding: 0.45rem 0.9rem; border-radius: 2px;
+}
+.cat-tile .ct-num { position: absolute; top: 0.7rem; right: 0.9rem; font-family: var(--serif); font-size: 1.4rem; color: rgba(255,255,255,0.85); }
+
+.section-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin: 0 0 1.1rem; }
+.section-row h2 { font-size: 1.5rem; }
+.section-row a { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; }
+
+/* search */
+.shop-search { display: flex; gap: 0.6rem; align-items: center; flex: 1; max-width: 340px; }
+.shop-search input {
+  flex: 1; border: 1px solid var(--line); border-radius: 100px; background: var(--white);
+  padding: 0.6rem 1.1rem; font-family: var(--sans); font-size: 16px; outline: none; min-width: 0;
+}
+.shop-search input:focus { border-color: var(--gold); }
+.load-more-wrap { text-align: center; margin-top: 2rem; }
+
+/* swatch option buttons (colored circles for stone colors) */
+.opt-btn.swatch {
+  width: 42px; height: 42px; min-height: 42px; padding: 0; border-radius: 50%;
+  border: 2px solid var(--line); text-indent: -9999px; overflow: hidden; position: relative;
+  box-shadow: inset 0 -5px 10px rgba(0,0,0,0.18);
+}
+.opt-btn.swatch.active { border-color: var(--ink); transform: scale(1.1); }
+.opt-btn.swatch.unavailable { opacity: 0.3; }
+.opt-btn.swatch.unavailable::after {
+  content: ""; position: absolute; left: 10%; top: 48%; width: 80%; height: 2px;
+  background: var(--ink); transform: rotate(-35deg);
+}
+/* swatch fills must outrank .opt-btn's white bg and .active's ink bg */
+.opt-btn.swatch.sw-crystal { background: radial-gradient(circle at 35% 30%, #ffffff, #cac4de); }
+.opt-btn.swatch.sw-emerald { background: radial-gradient(circle at 35% 30%, #3fc98a, #0a5c39); }
+.opt-btn.swatch.sw-sapphire { background: radial-gradient(circle at 35% 30%, #6d92ef, #14349c); }
+.opt-btn.swatch.sw-ruby { background: radial-gradient(circle at 35% 30%, #ef5d82, #98092c); }
+.opt-btn.swatch.sw-pink { background: radial-gradient(circle at 35% 30%, #f49ac4, #cc3d7f); }
+
+/* cross-sell */
+.related { margin-top: 4rem; }
+.related .product-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+
+/* breadcrumb */
+.crumbs { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 1.4rem; }
+.crumbs a { color: var(--ink-soft); }
+.crumbs a:hover { color: var(--gold); }
+.crumbs .sep { margin: 0 0.45rem; color: var(--line); }
+
+/* toast action link */
+.toast a { color: var(--gold-bright); margin-left: 0.7rem; }

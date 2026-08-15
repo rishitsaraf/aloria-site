@@ -97,4 +97,31 @@ async function sendCartRecovery(cart, items, totalCents) {
   return send({ to: cart.email, subject: "Your Aloria bag is waiting", html, text });
 }
 
-module.exports = { send, sendOrderConfirmation, sendCartRecovery, siteUrl };
+async function sendPasswordReset(to, token) {
+  const link = siteUrl(`/account?reset=${encodeURIComponent(token)}`);
+  const html = layout("Reset your password", `
+    <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
+      Someone asked to reset the password for this Aloria account. If that was you,
+      the link below works for one hour. If it wasn't, you can safely ignore this email.
+    </p>
+    <p style="text-align:center;margin:26px 0 6px;">
+      <a href="${link}" style="background:#14120f;color:#ffffff;text-decoration:none;padding:12px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">Choose a new password</a>
+    </p>`);
+  return send({ to, subject: "Reset your Aloria password", html, text: `Reset your Aloria password (valid 1 hour): ${link}` });
+}
+
+async function sendShippingConfirmation(order, items) {
+  const html = layout(`Order ${order.number} is on its way`, `
+    <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
+      Good news${order.shipping_name ? `, ${escapeHtml(order.shipping_name.split(" ")[0])}` : ""} —
+      your pieces have left the atelier and are on their way to you.
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin:18px 0;">${itemRows(items, order.currency)}</table>
+    <p style="text-align:center;margin:26px 0 6px;">
+      <a href="${siteUrl(`/checkout/thanks?order=${encodeURIComponent(order.number)}&key=${encodeURIComponent(order.public_token)}`)}"
+         style="background:#b08d3e;color:#ffffff;text-decoration:none;padding:12px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">View order</a>
+    </p>`);
+  return send({ to: order.email, subject: `Your Aloria order ${order.number} has shipped`, html, text: `Your Aloria order ${order.number} has shipped.` });
+}
+
+module.exports = { send, sendOrderConfirmation, sendCartRecovery, sendPasswordReset, sendShippingConfirmation, siteUrl };

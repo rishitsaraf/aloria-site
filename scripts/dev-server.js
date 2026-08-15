@@ -55,6 +55,9 @@ http.createServer((req, res) => {
   req.on("data", (c) => chunks.push(c));
   req.on("end", async () => {
     decorate(req, res, Buffer.concat(chunks));
+    // vercel.json rewrites
+    if (req.url === "/sitemap.xml") req.url = "/api/store/sitemap";
+    if (req.url === "/robots.txt") req.url = "/api/store/robots";
     try {
       if (req.url.startsWith("/api/store")) await storeHandler(req, res);
       else if (req.url.startsWith("/api/auth")) await authHandler(req, res);

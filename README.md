@@ -9,9 +9,10 @@ Postgres. No framework, no build step.
 | Area | URL | What it is |
 |---|---|---|
 | Teaser | `/` | Coming-soon page, waitlist capture, gate into the hub |
-| **Storefront** | `/shop` | Public catalog with category filters, PDPs with variant matrices, bag, checkout, order confirmation |
-| Account | `/account` | Customer sign-in / registration / order history |
-| **CMS** | `/admin` | Atelier Console: dashboard metrics, product & variant management, orders, customers, abandoned bags, discounts, waitlist |
+| **Storefront** | `/shop` | Landing (hero, category tiles, signature row), search, category filters, PDPs with stone-color swatches + smart variant availability + cross-sell, bag, checkout, order confirmation |
+| Account | `/account` | Customer sign-in / registration / password reset / order history |
+| **CMS** | `/admin` | Atelier Console: metrics + 14-day revenue trend, product & variant management, orders (CSV export, shipping-confirmation emails), customers, abandoned bags, discounts, waitlist |
+| SEO | `/sitemap.xml`, `/robots.txt` | Generated from the live catalog; PDPs carry schema.org Product JSON-LD |
 | Brand hub | `/hub` | Private brand book (still gated by the shared password) |
 
 ## Structure
@@ -75,7 +76,10 @@ vercel.json          cleanUrls, hourly cron sweep, security headers
   automatic recovery email with a tokenized restore link, and appears in the CMS for manual
   re-sends. Recovered conversions are tracked and reported on the dashboard.
 - **Orders**: `pending → paid → fulfilled`, or `cancelled`/`refunded` (both restock).
-  Customers see history under `/account`; guests get a tokenized order link by email.
+  Marking an order fulfilled sends a shipping-confirmation email. Customers see history
+  under `/account`; guests get a tokenized order link by email.
+- **Password reset**: `/account` → "Forgot your password?" — tokenized one-hour links,
+  single-use, no account enumeration, and all existing sessions are revoked on reset.
 
 ## Security notes
 

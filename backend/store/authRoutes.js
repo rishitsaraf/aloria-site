@@ -4,7 +4,8 @@
 
 const db = require("../lib/db");
 const auth = require("../lib/auth");
-const { json, badRequest, cleanEmail, cleanString, rateLimit, clientIp } = require("../lib/http");
+const emailLib = require("../lib/email");
+const { json, badRequest, cleanEmail, cleanString, rateLimit, clientIp, randomToken, sha256 } = require("../lib/http");
 const cartLib = require("./cartLib");
 
 async function register(req, res) {
@@ -59,8 +60,54 @@ async function me(req, res) {
   json(res, 200, { user: user ? publicUser(user) : null });
 }
 
+/** Request a reset link. Always answers 200 — never reveals whether the
+    account exists. */
+async function forgot(req, res) {
+  await rateLimit(`forgot:${clientIp(req)}`, 10, 900);
+  const email = cleanEmail((req.body || {}).email);
+  await rateLimit(`forgot:${email}`, 5, 900);
+  const r = await db.query("SELECT id FROM users WHERE email = $1", [email]);
+  if (r.rows.length) {
+    const token = randomToken();
+    await db.query(
+      `INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES ($1, $2, now() + interval '1 hour')`,
+      [sha256(token), r.rows[0].id]
+    );
+    try { await emailLib.sendPasswordReset(email, token); }
+    catch (e) { console.error("[auth] reset email failed:", e.message); }
+  }
+  json(res, 200, { ok: true, message: "If that account exists, a reset link is on its way" });
+}
+
+/** Redeem a reset token: new password, all old sessions and tokens revoked,
+    fresh session issued. */
+async function reset(req, res) {
+  await rateLimit(`reset:${clientIp(req)}`, 10, 900);
+  const body = req.body || {};
+  const token = String(body.token || "");
+  if (!/^[a-f0-9]{64}$/.test(token)) throw badRequest("This reset link is invalid");
+  const password = String(body.password || "");
+  if (password.length < 8) throw badRequest("Password must be at least 8 characters");
+  if (password.length > 200) throw badRequest("Password is too long");
+
+  const r = await db.query(
+    `SELECT pr.user_id, u.email, u.name, u.role FROM password_resets pr
+       JOIN users u ON u.id = pr.user_id
+      WHERE pr.token_hash = $1 AND pr.expires_at > now()`,
+    [sha256(token)]
+  );
+  const row = r.rows[0];
+  if (!row) throw badRequest("This reset link has expired — request a new one");
+
+  await db.query("UPDATE users SET password_hash = $1 WHERE id = $2", [auth.hashPassword(password), row.user_id]);
+  await db.query("DELETE FROM password_resets WHERE user_id = $1", [row.user_id]);
+  await db.query("DELETE FROM sessions WHERE user_id = $1", [row.user_id]);
+  await auth.createSession(req, res, row.user_id);
+  json(res, 200, { ok: true, user: publicUser({ id: row.user_id, email: row.email, name: row.name, role: row.role }) });
+}
+
 function publicUser(u) {
   return { id: u.id, email: u.email, name: u.name, role: u.role };
 }
 
-module.exports = { register, login, logout, me, publicUser };
+module.exports = { register, login, logout, me, forgot, reset, publicUser };

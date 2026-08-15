@@ -80,6 +80,7 @@ async function viewDashboard() {
       <div class="tile"><div class="k">Live products</div><div class="v">${m.activeProducts}<span style="font-size:1rem;color:var(--ink-soft)">/${m.totalProducts}</span></div><div class="s">${m.lowStockVariants} variants low on stock</div></div>
       <div class="tile"><div class="k">Customers</div><div class="v">${m.customers}</div><div class="s">&nbsp;</div></div>
     </div>
+    ${revenueChartHtml(m.revenueByDay || [])}
     <div class="panel">
       <div class="panel-head"><h2 class="serif">Latest orders</h2><a class="mono" href="#/orders" style="font-size:0.62rem">All orders →</a></div>
       <div class="tbl-wrap"><table class="tbl">
@@ -90,6 +91,7 @@ async function viewDashboard() {
           <td class="mono-cell">${dt(o.created_at)}</td></tr>`).join("") || '<tr><td colspan="5" style="color:var(--ink-soft)">No orders yet</td></tr>'}
         </tbody></table></div>
     </div>`;
+  bindRevenueChart(m.revenueByDay || []);
   const seedBtn = document.getElementById("seedBtn");
   if (seedBtn) seedBtn.onclick = async () => {
     seedBtn.disabled = true;
@@ -99,6 +101,90 @@ async function viewDashboard() {
       viewDashboard();
     } catch (e) { Store.toast(e.message); seedBtn.disabled = false; }
   };
+}
+
+/* ---------- revenue trend (single gold series; line + soft area;
+   crosshair + tooltip on hover; table view for accessibility) ---------- */
+
+const CH = { w: 720, h: 160, padX: 10, padTop: 18, padBot: 24 };
+
+function chartGeom(days) {
+  const max = Math.max(1, ...days.map((d) => d.revenueCents));
+  const innerW = CH.w - CH.padX * 2;
+  const innerH = CH.h - CH.padTop - CH.padBot;
+  const x = (i) => CH.padX + (days.length === 1 ? innerW / 2 : (i / (days.length - 1)) * innerW);
+  const y = (v) => CH.padTop + innerH - (v / max) * innerH;
+  return { max, x, y, innerW, innerH };
+}
+
+function revenueChartHtml(days) {
+  if (!days.length) return "";
+  const { max, x, y } = chartGeom(days);
+  const pts = days.map((d, i) => `${x(i).toFixed(1)},${y(d.revenueCents).toFixed(1)}`);
+  const area = `M${pts[0]} L${pts.slice(1).join(" L")} L${x(days.length - 1).toFixed(1)},${(CH.h - CH.padBot).toFixed(1)} L${x(0).toFixed(1)},${(CH.h - CH.padBot).toFixed(1)} Z`;
+  const last = days[days.length - 1];
+  const fmtDay = (s) => new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const gridYs = [0.25, 0.5, 0.75].map((f) => (CH.padTop + (1 - f) * (CH.h - CH.padTop - CH.padBot)).toFixed(1));
+  return `
+    <div class="panel chart-panel">
+      <div class="panel-head"><h2 class="serif">Revenue — last 14 days</h2>
+        <span class="mono" style="font-size:0.6rem;color:var(--ink-soft)">peak ${fmt(max)}</span></div>
+      <div class="pad">
+        <div class="chart-wrap" id="revChart">
+          <svg viewBox="0 0 ${CH.w} ${CH.h}" role="img" aria-label="Daily revenue for the last 14 days, peaking at ${fmt(max)}">
+            ${gridYs.map((gy) => `<line x1="${CH.padX}" x2="${CH.w - CH.padX}" y1="${gy}" y2="${gy}" stroke="#e9e4dc" stroke-width="1"/>`).join("")}
+            <line x1="${CH.padX}" x2="${CH.w - CH.padX}" y1="${CH.h - CH.padBot}" y2="${CH.h - CH.padBot}" stroke="#d9d2c6" stroke-width="1"/>
+            <path d="${area}" fill="#b08d3e" opacity="0.10"/>
+            <polyline points="${pts.join(" ")}" fill="none" stroke="#b08d3e" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            <circle cx="${x(days.length - 1).toFixed(1)}" cy="${y(last.revenueCents).toFixed(1)}" r="4" fill="#b08d3e" stroke="#ffffff" stroke-width="2"/>
+            <text x="${CH.padX}" y="${CH.h - 7}" font-size="10" font-family="monospace" fill="#55504a">${fmtDay(days[0].day)}</text>
+            <text x="${CH.w - CH.padX}" y="${CH.h - 7}" font-size="10" font-family="monospace" fill="#55504a" text-anchor="end">${fmtDay(last.day)}</text>
+            <line id="revCross" y1="${CH.padTop}" y2="${CH.h - CH.padBot}" stroke="#14120f" stroke-width="1" opacity="0"/>
+            <circle id="revDot" r="4" fill="#b08d3e" stroke="#ffffff" stroke-width="2" opacity="0"/>
+          </svg>
+          <div class="chart-tip" id="revTip"></div>
+        </div>
+      </div>
+      <details class="chart-table">
+        <summary>View as table</summary>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Day</th><th>Revenue</th><th>Orders</th></tr></thead>
+          <tbody>${days.map((d) => `<tr><td class="mono-cell">${fmtDay(d.day)}</td><td class="mono-cell">${fmt(d.revenueCents)}</td><td class="mono-cell">${d.orders}</td></tr>`).join("")}</tbody>
+        </table></div>
+      </details>
+    </div>`;
+}
+
+function bindRevenueChart(days) {
+  const wrap = document.getElementById("revChart");
+  if (!wrap || !days.length) return;
+  const svg = wrap.querySelector("svg");
+  const tip = document.getElementById("revTip");
+  const cross = document.getElementById("revCross");
+  const dot = document.getElementById("revDot");
+  const { x, y } = chartGeom(days);
+  const fmtDay = (s) => new Date(s).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+  function show(ev) {
+    const rect = svg.getBoundingClientRect();
+    const relX = ((ev.clientX - rect.left) / rect.width) * CH.w;
+    let best = 0;
+    for (let i = 1; i < days.length; i++) if (Math.abs(x(i) - relX) < Math.abs(x(best) - relX)) best = i;
+    const d = days[best];
+    cross.setAttribute("x1", x(best)); cross.setAttribute("x2", x(best)); cross.setAttribute("opacity", "0.25");
+    dot.setAttribute("cx", x(best)); dot.setAttribute("cy", y(d.revenueCents)); dot.setAttribute("opacity", "1");
+    tip.innerHTML = `${fmtDay(d.day)} · <b>${fmt(d.revenueCents)}</b> · ${d.orders} order${d.orders === 1 ? "" : "s"}`;
+    tip.style.left = `${(x(best) / CH.w) * rect.width}px`;
+    tip.style.top = `${(y(d.revenueCents) / CH.h) * rect.height}px`;
+    tip.style.opacity = "1";
+  }
+  function hide() {
+    tip.style.opacity = "0";
+    cross.setAttribute("opacity", "0");
+    dot.setAttribute("opacity", "0");
+  }
+  wrap.addEventListener("mousemove", show);
+  wrap.addEventListener("mouseleave", hide);
 }
 
 /* ---------- products ---------- */
@@ -404,7 +490,8 @@ async function viewOrders() {
   if (state.q) params.set("q", state.q);
   const { orders } = await Store.api(`admin/orders?${params}`);
   $m().innerHTML = `
-    <div class="admin-head"><h1 class="serif">Orders</h1></div>
+    <div class="admin-head"><h1 class="serif">Orders</h1>
+      <button class="btn ghost small" id="csvBtn" type="button" ${orders.length ? "" : "disabled"}>Export CSV</button></div>
     <div class="panel">
       <div class="panel-head">
         <div class="toolbar">
@@ -431,6 +518,22 @@ async function viewOrders() {
   document.querySelectorAll("tr.click").forEach((tr) => { tr.onclick = () => { location.hash = `#/orders/${tr.dataset.id}`; }; });
   document.getElementById("oQ").onchange = (e) => { state.q = e.target.value; viewOrders(); };
   document.getElementById("oStatus").onchange = (e) => { state.status = e.target.value; viewOrders(); };
+  document.getElementById("csvBtn").onclick = () => exportOrdersCsv(orders);
+}
+
+function exportOrdersCsv(orders) {
+  const q = (s) => `"${String(s == null ? "" : s).replace(/"/g, '""')}"`;
+  const rows = [
+    ["number", "email", "status", "payment_method", "total", "currency", "recovered_cart", "created_at"],
+    ...orders.map((o) => [o.number, o.email, o.status, o.payment_method,
+      (o.total_cents / 100).toFixed(2), o.currency, o.from_recovered_cart ? "yes" : "no", o.created_at]),
+  ];
+  const csv = rows.map((r) => r.map(q).join(",")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+  a.download = `aloria-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 async function viewOrderDetail(id) {

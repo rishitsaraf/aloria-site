@@ -90,3 +90,20 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 1.2rem; font-size: 0.86rem; }
 .kv dt { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); padding-top: 0.2rem; }
 .kv dd { margin: 0; }
+
+/* ---------- revenue trend chart ---------- */
+.chart-panel .pad { padding: 1.2rem 1.2rem 0.6rem; }
+.chart-wrap { position: relative; }
+.chart-wrap svg { display: block; width: 100%; height: auto; }
+.chart-tip {
+  position: absolute; pointer-events: none; opacity: 0; transition: opacity 0.15s;
+  background: var(--ink); color: #fff; border-radius: 4px; padding: 0.45rem 0.7rem;
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 10px)); z-index: 5;
+}
+.chart-tip b { color: var(--gold-bright); }
+.chart-table summary {
+  cursor: pointer; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-soft); padding: 0.6rem 1.2rem;
+}
+.chart-table table { margin: 0; }

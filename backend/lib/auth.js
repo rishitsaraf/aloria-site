@@ -92,6 +92,7 @@ async function requireAdmin(req) {
 /** Opportunistic cleanup of expired sessions (cheap, run from cron). */
 async function pruneSessions() {
   await db.query("DELETE FROM sessions WHERE expires_at < now()");
+  await db.query("DELETE FROM password_resets WHERE expires_at < now()");
   await db.query("DELETE FROM rate_limits WHERE window_start < now() - interval '1 day'");
 }
 

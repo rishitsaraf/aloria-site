@@ -61,6 +61,15 @@ async function metrics(req, res) {
                WHERE c.status = 'abandoned'`),
     db.query(`SELECT number, email, status, total_cents, currency, created_at FROM orders ORDER BY created_at DESC LIMIT 8`),
   ]);
+  // 14-day revenue series for the dashboard trend (zero-filled)
+  const trend = await db.query(
+    `SELECT d::date AS day,
+            COALESCE(SUM(o.total_cents) FILTER (WHERE o.status IN ('paid','fulfilled')), 0)::bigint AS revenue_cents,
+            COUNT(o.id) FILTER (WHERE o.status IN ('paid','fulfilled'))::int AS orders
+       FROM generate_series((now() - interval '13 days')::date, now()::date, interval '1 day') d
+       LEFT JOIN orders o ON o.created_at::date = d::date
+      GROUP BY d ORDER BY d`
+  );
   const m = rev.rows[0];
   json(res, 200, {
     revenueCents: Number(m.revenue_cents),
@@ -76,6 +85,7 @@ async function metrics(req, res) {
     abandonedCarts: carts.rows[0].n,
     abandonedValueCents: Number(carts.rows[0].value_cents),
     recentOrders: recent.rows,
+    revenueByDay: trend.rows.map((r2) => ({ day: r2.day, revenueCents: Number(r2.revenue_cents), orders: r2.orders })),
   });
 }
 
@@ -297,15 +307,22 @@ async function updateOrder(req, res, params) {
   const id = cleanInt(params.id, { name: "order id", min: 1 });
   const status = String((req.body || {}).status || "");
   if (!ORDER_STATUSES.includes(status)) throw badRequest(`status must be one of ${ORDER_STATUSES.join(", ")}`);
+  let shippedNow = false;
   const updated = await db.tx(async (client) => {
     const cur = await client.query("SELECT * FROM orders WHERE id = $1 FOR UPDATE", [id]);
     const order = cur.rows[0];
     if (!order) throw notFound("Order not found");
     const restockNow = ["cancelled", "refunded"].includes(status) && !["cancelled", "refunded"].includes(order.status);
+    shippedNow = status === "fulfilled" && order.status !== "fulfilled";
     const r = await client.query("UPDATE orders SET status = $1, updated_at = now() WHERE id = $2 RETURNING *", [status, id]);
     if (restockNow) await checkout.restockOrder(client, id);
     return r.rows[0];
   });
+  if (shippedNow) {
+    const items = (await db.query("SELECT * FROM order_items WHERE order_id = $1", [id])).rows;
+    try { await emailLib.sendShippingConfirmation(updated, items); }
+    catch (e) { console.error("[admin] shipping email failed:", e.message); }
+  }
   json(res, 200, { order: updated });
 }
 

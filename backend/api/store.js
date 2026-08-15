@@ -23,6 +23,8 @@ const ROUTES = [
   ["POST", "auth/login", authRoutes.login],
   ["POST", "auth/logout", authRoutes.logout],
   ["GET", "auth/me", authRoutes.me],
+  ["POST", "auth/forgot", authRoutes.forgot],
+  ["POST", "auth/reset", authRoutes.reset],
 
   // catalog (public)
   ["GET", "products", catalog.list],
@@ -43,8 +45,10 @@ const ROUTES = [
   ["GET", "orders/lookup", checkout.lookup],
   ["GET", "orders", checkout.myOrders],
 
-  // cron
+  // cron & seo
   ["GET", "cron/sweep", cron.sweep],
+  ["GET", "sitemap", require("../store/sitemap").sitemap],
+  ["GET", "robots", require("../store/sitemap").robots],
 
   // admin CMS
   ["GET", "admin/metrics", adminWrap(admin.metrics)],

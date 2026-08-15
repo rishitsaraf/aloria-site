@@ -38,6 +38,7 @@ async function refreshQuote() {
     return;
   }
   $("checkoutForm").hidden = false;
+  syncPayChoices(q.stripeEnabled);
   $("miniLines").innerHTML = q.cart.items.filter((i) => i.purchasable).map((i) => `
     <div class="mini-line">
       ${i.image ? `<img src="${Store.esc(i.image)}" alt="">` : ""}
@@ -54,6 +55,14 @@ async function refreshQuote() {
     $("discountMsg").className = "form-msg ok";
   }
   if (q.cart.email && !$("coEmail").value) $("coEmail").value = q.cart.email;
+}
+
+/* Only show payment options the server can actually honour. */
+function syncPayChoices(stripeEnabled) {
+  const stripeLabel = document.querySelector('input[name="pay"][value="stripe"]').closest("label");
+  const testInput = document.querySelector('input[name="pay"][value="test"]');
+  stripeLabel.hidden = !stripeEnabled;
+  if (!stripeEnabled) testInput.checked = true;
 }
 
 async function captureEmailEarly() {
@@ -100,9 +109,6 @@ async function placeOrder(ev) {
   Store.footer();
   $("coCountry").innerHTML = COUNTRIES.map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
 
-  // Hide the Stripe option when payments aren't configured yet: probe by
-  // checking /auth/me works and defaulting sensibly — the server decides
-  // anyway (falls back to test mode when Stripe isn't configured).
   if (Store.qs("cancelled")) Store.toast("Payment cancelled — your bag is untouched");
 
   const { user } = await Store.api("auth/me").catch(() => ({ user: null }));
