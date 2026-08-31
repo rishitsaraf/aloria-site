@@ -172,7 +172,7 @@ async function viewContent() {
       </div>
     </div>
     <div class="admin-msg" id="contentMsg"></div>`;
-  document.getElementById("contentSave").onclick = async () => {
+  document.getElementById("contentSave").onclick = async (ev) => await withBusy(ev.currentTarget, async () => {
     const msg = document.getElementById("contentMsg");
     try {
       await Store.api("admin/content", {
@@ -189,7 +189,7 @@ async function viewContent() {
       });
       Store.toast("Content saved — live within a minute");
     } catch (e) { msg.textContent = e.message; msg.className = "admin-msg err"; }
-  };
+  });
 }
 
 /* ================= Pages ================= */
@@ -248,7 +248,7 @@ async function viewPageEditor(id) {
   const preview = () => { document.getElementById("pePreview").innerHTML = Store.mdToHtml(document.getElementById("peBody").value); };
   preview();
   document.getElementById("peBody").addEventListener("input", preview);
-  document.getElementById("pgSave").onclick = async () => {
+  document.getElementById("pgSave").onclick = async (ev) => await withBusy(ev.currentTarget, async () => {
     const msg = document.getElementById("peMsg");
     try {
       await Store.api(`admin/pages/${id}`, { method: "PATCH", body: {
@@ -259,7 +259,7 @@ async function viewPageEditor(id) {
       } });
       Store.toast("Page saved");
     } catch (e) { msg.textContent = e.message; msg.className = "admin-msg err"; }
-  };
+  });
   document.getElementById("pgDelete").onclick = async () => {
     if (!confirm("Delete this page?")) return;
     await Store.api(`admin/pages/${id}`, { method: "DELETE" });
@@ -308,7 +308,7 @@ async function viewSettings() {
         ${integ(integrations.cronSecret, "Cron secret", "Set CRON_SECRET to lock the hourly sweep")}
       </div>
     </div>`;
-  document.getElementById("setSave").onclick = async () => {
+  document.getElementById("setSave").onclick = async (ev) => await withBusy(ev.currentTarget, async () => {
     const msg = document.getElementById("setMsg");
     try {
       let byCountry;
@@ -324,7 +324,7 @@ async function viewSettings() {
       } } });
       Store.toast("Settings saved");
     } catch (e) { msg.textContent = e.message; msg.className = "admin-msg err"; }
-  };
+  });
 }
 
 /* ================= Staff & audit ================= */
@@ -365,7 +365,7 @@ async function viewStaff() {
           '<tr><td colspan="3" style="color:var(--ink-soft)">Nothing yet</td></tr>'}
         </tbody></table></div>
     </div>`;
-  document.getElementById("stInvite").onclick = async () => {
+  document.getElementById("stInvite").onclick = async (ev) => await withBusy(ev.currentTarget, async () => {
     const msg = document.getElementById("stMsg");
     try {
       const r = await Store.api("admin/staff", { method: "POST", body: {
@@ -376,7 +376,7 @@ async function viewStaff() {
       Store.toast(r.promoted ? "Existing account promoted" : "Invite sent");
       viewStaff();
     } catch (e) { msg.textContent = e.message; msg.className = "admin-msg err"; }
-  };
+  });
   document.querySelectorAll("[data-staff-save]").forEach((b) => {
     b.onclick = async () => {
       try {
@@ -472,10 +472,10 @@ async function viewEmails() {
   document.querySelectorAll("[data-em]").forEach((b) => {
     b.onclick = () => { state.current = b.dataset.em; viewEmails(); };
   });
-  document.getElementById("emTest").onclick = async () => {
+  document.getElementById("emTest").onclick = async (ev) => await withBusy(ev.currentTarget, async () => {
     const r = await Store.api(`admin/emails/${state.current}/test`, { method: "POST", body: {} });
     Store.toast(r.delivered ? `Test sent to ${r.to}` : `Logged only (no RESEND_API_KEY) — would go to ${r.to}`);
-  };
+  });
 }
 
 /* ================= Customer detail ================= */
@@ -574,7 +574,7 @@ async function viewManualOrder() {
   };
   addLine();
   document.getElementById("moAddLine").onclick = addLine;
-  document.getElementById("moCreate").onclick = async () => {
+  document.getElementById("moCreate").onclick = async (ev) => await withBusy(ev.currentTarget, async () => {
     const msg = document.getElementById("moMsg");
     const items = [...linesEl.querySelectorAll("[data-mo-sku]")].map((input, i) => ({
       sku: input.value.trim(),
@@ -594,7 +594,7 @@ async function viewManualOrder() {
       Store.toast(`Order ${r.order.number} created`);
       location.hash = `#/orders/${r.order.id}`;
     } catch (e) { msg.textContent = e.message; msg.className = "admin-msg err"; }
-  };
+  });
 }
 
 /* routes merged into admin.js's table */

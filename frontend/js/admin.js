@@ -11,6 +11,14 @@ const dt = (s) => new Date(s).toLocaleString(undefined, { month: "short", day: "
 
 const STAFF_ROLES = { viewer: 1, editor: 2, admin: 3 };
 let ME = null;
+let INTEGRATIONS = { stripe: false, resend: false, blob: false, cronSecret: false };
+
+/** Busy-state wrapper: spinner on the button, double-click proof. */
+async function withBusy(btn, fn) {
+  if (!btn || btn.classList.contains("busy")) return;
+  btn.classList.add("busy");
+  try { await fn(); } finally { btn.classList.remove("busy"); }
+}
 
 async function boot() {
   const { user } = await Store.api("auth/me").catch(() => ({ user: null }));
@@ -51,6 +59,7 @@ async function boot() {
   document.querySelectorAll("[data-min-role]").forEach((a) => {
     if (STAFF_ROLES[user.role] < STAFF_ROLES[a.dataset.minRole]) a.remove();
   });
+  Store.api("admin/settings").then((r) => { INTEGRATIONS = r.integrations; }).catch(() => {});
   document.getElementById("adminLogout").onclick = async () => { await Store.api("auth/logout", { method: "POST" }); location.reload(); };
   window.addEventListener("hashchange", route);
   route();
@@ -75,7 +84,19 @@ function route() {
     a.classList.toggle("active", hash.startsWith(`#/${a.dataset.nav}`)));
   for (const [re, fn] of ROUTES) {
     const m = hash.match(re);
-    if (m) { fn(m).catch(showError); return; }
+    if (m) {
+      const loader = document.getElementById("routeLoader");
+      const scroller = document.getElementById("adminMainScroll");
+      // freeze current height while loading so the frame never jumps
+      $m().style.minHeight = `${$m().offsetHeight}px`;
+      if (loader) loader.classList.add("on");
+      fn(m).catch(showError).finally(() => {
+        if (loader) loader.classList.remove("on");
+        $m().style.minHeight = "";
+        if (scroller) scroller.scrollTop = 0;
+      });
+      return;
+    }
   }
   location.hash = "#/dashboard";
 }
@@ -388,14 +409,31 @@ async function viewProducts() {
 
 /* ---------- product editor ---------- */
 
-/* The Aloria system's standard axes — base plating, stone shape, stone
-   color — addable with one click so every product captures the same
-   variations the brand is built on. */
+/* The Aloria design-doc axis library (frontend/data/skus.json). Every
+   variation the brand system defines is addable with one click:
+   - Base:       Plating (925 silver in Gold / Rhodium)
+   - Stones:     Stone Shape × Stone Color (primary pieces E1-3/N1-3/R1-3)
+   - Components: Texture (orbit jackets E4/N4/R4), Length (chains E5/N5),
+                 Width (stacker R5)
+   - Rings:      Ring Size US 3–10 (R-SIZE) */
 const ALORIA_AXES = [
-  { name: "Plating", values: ["Gold", "Rhodium"] },
-  { name: "Stone Shape", values: ["Round", "Oval", "Pear", "Emerald Cut", "Heart"] },
-  { name: "Stone Color", values: ["Crystal", "Emerald", "Sapphire", "Ruby"] },
+  { group: "Base", name: "Plating", values: ["Gold", "Rhodium"] },
+  { group: "Stones", name: "Stone Shape", values: ["Round", "Oval", "Pear", "Emerald Cut", "Heart"] },
+  { group: "Stones", name: "Stone Color", values: ["Crystal", "Emerald", "Sapphire", "Ruby"] },
+  { group: "Components", name: "Texture", values: ["Plain", "Pavé"] },
+  { group: "Components", name: "Length", values: ["Short", "Long"] },
+  { group: "Components", name: "Width", values: ["Thin", "Wide"] },
+  { group: "Rings", name: "Ring Size", values: ["US 3", "US 4", "US 5", "US 6", "US 7", "US 8", "US 9", "US 10"] },
 ];
+
+/* stone colors → dot color + swatch imagery for one-click image mapping */
+const STONE_META = {
+  crystal: { dot: "#cfc9e2", swatch: "/assets/img/swatches/variant_clear.webp" },
+  emerald: { dot: "#0f7a4d", swatch: "/assets/img/swatches/variant_emerald.webp" },
+  sapphire: { dot: "#1e4fc2", swatch: "/assets/img/swatches/variant_sapphire.webp" },
+  ruby: { dot: "#c0143c", swatch: "/assets/img/swatches/variant_ruby.webp" },
+  pink: { dot: "#e0619b", swatch: "/assets/img/swatches/variant_pink.webp" },
+};
 
 let ed = null; // { product, variants, isNew }
 
@@ -445,7 +483,7 @@ function renderEditor() {
             <input type="checkbox" id="eFeatured" style="width:auto" ${p.featured ? "checked" : ""}> Featured (Signature badge, sorts first)</label></div>
           <div class="form-row">
             <div class="field"><label>SEO title (optional)</label><input id="eSeoTitle" value="${esc(p.seo_title || "")}" maxlength="70"></div>
-            <div class="field"><label>Publish at (drafts go live automatically)</label><input id="ePublishAt" type="datetime-local" value="${p.publish_at ? new Date(p.publish_at).toISOString().slice(0, 16) : ""}"></div>
+            <div class="field"><label>Publish at (drafts go live automatically)</label><input id="ePublishAt" type="datetime-local" value="${p.publish_at ? toLocalInput(p.publish_at) : ""}"></div>
           </div>
           <div class="field"><label>SEO description (optional)</label><input id="eSeoDesc" value="${esc(p.seo_description || "")}" maxlength="170"></div>
         </div>
@@ -456,21 +494,30 @@ function renderEditor() {
           <h2 class="serif" style="font-size:1.05rem;margin-bottom:0.9rem">Images</h2>
           <div id="imgRows">${(p.images || []).map((src, i) => imgRow(src, i)).join("")}</div>
           <button class="btn ghost small" id="addImg" type="button">＋ Add image path</button>
-          <label class="btn ghost small upload-btn" style="margin-left:0.4rem">Upload…<input type="file" id="imgUpload" accept="image/*"></label>
+          <label class="btn ghost small upload-btn" style="margin-left:0.4rem;${INTEGRATIONS.blob ? "" : "opacity:0.45;pointer-events:none"}"
+            title="${INTEGRATIONS.blob ? "Upload an image file" : "Connect Vercel Blob to enable uploads (Settings → Integrations); asset paths still work"}">
+            Upload…<input type="file" id="imgUpload" accept="image/*" ${INTEGRATIONS.blob ? "" : "disabled"}></label>
           <p class="mono" style="font-size:0.58rem;color:var(--ink-soft);margin-top:0.7rem">Paths under /assets/img/… or full https:// URLs. First image is the card image.</p>
         </div>
         <div class="panel pad">
           <h2 class="serif" style="font-size:1.05rem;margin-bottom:0.9rem">Options</h2>
-          <div class="preset-chips" id="presetChips">
-            ${ALORIA_AXES.map((axis) => {
-              const has = (p.options || []).some((o) => o.name.toLowerCase() === axis.name.toLowerCase());
-              return `<button type="button" data-preset="${esc(axis.name)}" ${has ? "disabled" : ""}>＋ ${esc(axis.name)}</button>`;
-            }).join("")}
-            <button type="button" data-preset="*" ${(p.options || []).length >= 3 ? "disabled" : ""}>✦ Full Aloria matrix</button>
+          <div class="axis-lib" id="presetChips">
+            ${["Base", "Stones", "Components", "Rings"].map((group) => `
+              <div class="axis-group-label">${group}</div>
+              <div class="preset-chips">
+                ${ALORIA_AXES.filter((a) => a.group === group).map((axis) => {
+                  const has = (p.options || []).some((o) => o.name.toLowerCase() === axis.name.toLowerCase());
+                  const full = (p.options || []).length >= 3;
+                  return `<button type="button" data-preset="${esc(axis.name)}" ${has || full ? "disabled" : ""}
+                    title="${esc(axis.values.join(" · "))}">＋ ${esc(axis.name)}</button>`;
+                }).join("")}
+                ${group === "Stones" ? `<button type="button" data-preset="*" ${(p.options || []).length >= 3 ? "disabled" : ""}
+                  title="Plating × Stone Shape × Stone Color — the full 40-SKU primary matrix">✦ Full matrix</button>` : ""}
+              </div>`).join("")}
           </div>
           <div id="optRows">${(p.options || []).map((o, i) => optRow(o, i)).join("")}</div>
           <button class="btn ghost small" id="addOpt" type="button" ${(p.options || []).length >= 3 ? "disabled" : ""}>＋ Custom option</button>
-          <p class="mono" style="font-size:0.58rem;color:var(--ink-soft);margin-top:0.7rem">The chips add the standard Aloria axes — Plating (Gold/Rhodium), Stone Shape (Round/Oval/Pear/Emerald Cut/Heart), Stone Color (Crystal/Emerald/Sapphire/Ruby). Up to 3 options; save, then generate the matrix below.</p>
+          <p class="mono" style="font-size:0.58rem;color:var(--ink-soft);margin-top:0.7rem">Every axis from the design doc, one click each — platings, stone shapes &amp; colors, jacket textures, chain lengths, band widths, US ring sizes. Up to 3 axes per product; “Generate matrix” below builds every combination.</p>
         </div>
       </div>
     </div>
@@ -489,11 +536,14 @@ function renderEditor() {
     ed.product.options.push({ name: "", values: [] });
     renderEditor();
   };
-  // one-click standard Aloria axes (Plating / Stone Shape / Stone Color)
+  // one-click design-doc axes ("*" = Plating × Stone Shape × Stone Color)
+  const CORE_MATRIX = ["Plating", "Stone Shape", "Stone Color"];
   document.querySelectorAll("[data-preset]").forEach((b) => {
     b.onclick = () => {
       collectEditorFields();
-      const wanted = b.dataset.preset === "*" ? ALORIA_AXES : ALORIA_AXES.filter((a) => a.name === b.dataset.preset);
+      const wanted = b.dataset.preset === "*"
+        ? ALORIA_AXES.filter((a) => CORE_MATRIX.includes(a.name))
+        : ALORIA_AXES.filter((a) => a.name === b.dataset.preset);
       for (const axis of wanted) {
         const exists = ed.product.options.some((o) => o.name.toLowerCase() === axis.name.toLowerCase());
         if (!exists && ed.product.options.length < 3) {
@@ -501,7 +551,7 @@ function renderEditor() {
         }
       }
       renderEditor();
-      Store.toast("Standard options added — save, then generate the matrix");
+      Store.toast("Axis added — Generate matrix builds every combination");
     };
   });
   const dupBtn = document.getElementById("dupBtn");
@@ -580,8 +630,7 @@ function collectEditorFields() {
   }).filter((o) => o.name && o.values.length);
 }
 
-async function saveProduct() {
-  collectEditorFields();
+function productBody() {
   const p = ed.product;
   const body = {
     title: p.title, subtitle: p.subtitle, description: p.description,
@@ -591,19 +640,34 @@ async function saveProduct() {
     publish_at: p.publish_at ? new Date(p.publish_at).toISOString() : null,
   };
   if (p.slug) body.slug = p.slug;
+  return body;
+}
+
+/** Persist the product form (fields + options). Used by both save buttons so
+    the variant matrix can never run against stale options. */
+async function persistProduct() {
+  collectEditorFields();
+  const r = await Store.api(`admin/products/${ed.product.id}`, { method: "PATCH", body: productBody() });
+  ed.product = r.product;
+  return r.product;
+}
+
+async function saveProduct() {
   const msg = document.getElementById("eMsg");
-  try {
-    if (ed.isNew) {
-      const r = await Store.api("admin/products", { method: "POST", body });
-      Store.toast("Product created — now build its variants");
-      location.hash = `#/products/${r.product.id}`;
-    } else {
-      const r = await Store.api(`admin/products/${p.id}`, { method: "PATCH", body });
-      ed.product = r.product;
-      Store.toast("Saved");
-      renderEditor();
-    }
-  } catch (e) { msg.textContent = e.message; msg.className = "admin-msg err"; }
+  await withBusy(document.getElementById("saveBtn"), async () => {
+    try {
+      if (ed.isNew) {
+        collectEditorFields();
+        const r = await Store.api("admin/products", { method: "POST", body: productBody() });
+        Store.toast("Product created — now build its variants");
+        location.hash = `#/products/${r.product.id}`;
+      } else {
+        await persistProduct();
+        Store.toast("Saved");
+        renderEditor();
+      }
+    } catch (e) { msg.textContent = e.message; msg.className = "admin-msg err"; }
+  });
 }
 
 async function deleteProduct() {
@@ -617,6 +681,12 @@ async function deleteProduct() {
 
 /* ---------- variants matrix ---------- */
 
+/* datetime-local wants local wall time, not UTC */
+function toLocalInput(iso) {
+  const t = new Date(iso);
+  return new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
 function skuBase(p) {
   return (p.title || "SKU").split(/\s+/).map((w) => w[0]).join("").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) || "SKU";
 }
@@ -624,13 +694,15 @@ const valCode = (v) => String(v).normalize("NFKD").replace(/[^a-zA-Z0-9]/g, "").
 
 function renderVariantsPanel() {
   const optionNames = (ed.product.options || []).map((o) => o.name);
+  const hasColorAxis = optionNames.some((n) => /color/i.test(n));
   return `
     <div class="panel">
       <div class="panel-head">
         <h2 class="serif">Variants <span class="mono" style="font-size:0.6rem;color:var(--ink-soft)">${ed.variants.length}</span></h2>
         <div class="toolbar">
-          <button class="btn ghost small" id="genMatrix" type="button">Generate matrix</button>
-          <button class="btn small" id="saveVariants" type="button">Save variants</button>
+          <button class="btn ghost small" id="genMatrix" type="button" title="Build every combination of the options above">Generate matrix</button>
+          ${hasColorAxis ? '<button class="btn ghost small" id="mapSwatches" type="button" title="Fill empty variant images with the matching stone swatch (Crystal/Emerald/Sapphire/Ruby)">Map stone swatches</button>' : ""}
+          <button class="btn small" id="saveVariants" type="button" title="Saves the product options and every variant row together">Save variants</button>
         </div>
       </div>
       <div class="tbl-wrap"><table class="tbl" id="varTable">
@@ -645,11 +717,20 @@ function renderVariantsPanel() {
 
 function variantRow(v, i, optionNames) {
   return `<tr data-vrow="${i}">
-    ${optionNames.map((n) => `<td class="mono-cell">${esc((v.options || {})[n] || "—")}</td>`).join("")}
+    ${optionNames.map((n) => {
+      const val = (v.options || {})[n];
+      const meta = val && /color/i.test(n) && STONE_META[String(val).toLowerCase()];
+      return `<td class="mono-cell">${meta ? `<i class="stone-dot" style="background:${meta.dot}"></i>` : ""}${esc(val || "—")}</td>`;
+    }).join("")}
     <td><input class="w-sku" value="${esc(v.sku || "")}" data-v="${i}" data-f="sku"></td>
     <td><input class="w-num" value="${v.price_cents == null ? "" : v.price_cents}" data-v="${i}" data-f="price_cents" inputmode="numeric" placeholder="base"></td>
     <td><input class="w-num" value="${v.stock == null ? 0 : v.stock}" data-v="${i}" data-f="stock" inputmode="numeric"></td>
-    <td><input class="w-img" value="${esc(v.image || "")}" data-v="${i}" data-f="image" placeholder="/assets/img/…"></td>
+    <td><div style="display:flex;gap:0.3rem;align-items:center">
+      <button class="row-upload" data-vup="${i}" type="button" ${INTEGRATIONS.blob ? "" : "disabled"}
+        title="${INTEGRATIONS.blob ? "Upload an image for this variant" : "Connect Vercel Blob to upload (Settings → Integrations); paths still work"}"
+        aria-label="Upload variant image">↥</button>
+      <input class="w-img" value="${esc(v.image || "")}" data-v="${i}" data-f="image" placeholder="/assets/img/…">
+    </div></td>
     <td style="text-align:center"><input type="checkbox" style="width:auto;min-width:0" data-v="${i}" data-f="active" ${v.active !== false ? "checked" : ""}></td>
     <td><button class="icon-btn" data-rm-v="${i}" type="button" aria-label="Remove variant">×</button></td>
   </tr>`;
@@ -686,19 +767,67 @@ function bindVariantEvents() {
     renderEditor();
     Store.toast(`${ed.variants.length} variant rows — review and save`);
   };
-  document.getElementById("saveVariants").onclick = async () => {
-    collectVariantRows();
-    const msg = document.getElementById("vMsg");
-    try {
-      const r = await Store.api(`admin/products/${ed.product.id}/variants`, {
-        method: "PUT",
-        body: { variants: ed.variants.map((v) => ({ ...v, image: v.image || null })) },
-      });
-      ed.variants = r.variants;
-      Store.toast("Variants saved");
-      renderEditor();
-    } catch (e) { msg.textContent = e.message; msg.className = "admin-msg err"; }
+  document.getElementById("saveVariants").onclick = async (ev) => {
+    await withBusy(ev.currentTarget, async () => {
+      collectVariantRows();
+      const msg = document.getElementById("vMsg");
+      try {
+        await persistProduct(); // options + fields first, so the matrix always validates
+        const r = await Store.api(`admin/products/${ed.product.id}/variants`, {
+          method: "PUT",
+          body: { variants: ed.variants.map((v) => ({ ...v, image: v.image || null })) },
+        });
+        ed.variants = r.variants;
+        Store.toast("Product + variants saved");
+        renderEditor();
+      } catch (e) { msg.textContent = e.message; msg.className = "admin-msg err"; }
+    });
   };
+  // fill empty images with the matching stone swatch, per the design doc
+  const mapBtn = document.getElementById("mapSwatches");
+  if (mapBtn) mapBtn.onclick = () => {
+    collectVariantRows();
+    const colorAxis = (ed.product.options || []).map((o) => o.name).find((n) => /color/i.test(n));
+    let mapped = 0;
+    for (const v of ed.variants) {
+      const meta = colorAxis && STONE_META[String((v.options || {})[colorAxis] || "").toLowerCase()];
+      if (meta && !v.image) { v.image = meta.swatch; mapped++; }
+    }
+    renderEditor();
+    Store.toast(mapped ? `${mapped} swatch images mapped — hit Save variants` : "Nothing to map (images already set)");
+  };
+  // per-row image upload (shared picker)
+  let vupTarget = null;
+  let vupInput = document.getElementById("vupInput");
+  if (!vupInput) {
+    vupInput = document.createElement("input");
+    vupInput.type = "file";
+    vupInput.accept = "image/*";
+    vupInput.id = "vupInput";
+    vupInput.hidden = true;
+    document.body.appendChild(vupInput);
+  }
+  vupInput.onchange = async () => {
+    const file = vupInput.files[0];
+    vupInput.value = "";
+    if (!file || vupTarget == null) return;
+    try {
+      const data = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+      const r = await Store.api("admin/uploads", { method: "POST", body: { filename: file.name, data } });
+      collectVariantRows();
+      if (ed.variants[vupTarget]) ed.variants[vupTarget].image = r.url;
+      renderEditor();
+      Store.toast("Variant image uploaded — hit Save variants");
+    } catch (e) { Store.toast(e.message); }
+  };
+  document.querySelectorAll("[data-vup]").forEach((b) => {
+    b.onclick = () => { vupTarget = Number(b.dataset.vup); vupInput.click(); };
+  });
   document.querySelectorAll("[data-rm-v]").forEach((b) => {
     b.onclick = () => { collectVariantRows(); ed.variants.splice(Number(b.dataset.rmV), 1); renderEditor(); };
   });

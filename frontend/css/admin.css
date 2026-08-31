@@ -164,3 +164,62 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 
 /* secret box for 2FA */
 .secret-box { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.15em; background: var(--paper); border: 1px dashed var(--gold); border-radius: 4px; padding: 0.8rem 1rem; word-break: break-all; margin: 0.8rem 0; }
+
+/* ============================================================
+   Round 4 — professional app frame.
+   Desktop: the shell is a fixed viewport frame; the sidebar is pinned
+   full-height with its own scroll, the main pane scrolls independently
+   with a stable scrollbar gutter so content width never shifts between
+   short and long views.
+   ============================================================ */
+@media (min-width: 861px) {
+  body.admin { overflow: hidden; }
+  .admin-shell { height: 100vh; height: 100dvh; }
+  .admin-side { height: 100vh; height: 100dvh; overflow-y: auto; scrollbar-width: thin; }
+  .admin-main {
+    height: 100vh; height: 100dvh; overflow-y: auto; scrollbar-gutter: stable;
+    max-width: none;
+  }
+  .admin-main > .view-inner { max-width: 1160px; }
+}
+.view-inner { width: 100%; }
+
+/* thin, quiet scrollbars inside the frame */
+.admin-side::-webkit-scrollbar, .admin-main::-webkit-scrollbar { width: 8px; }
+.admin-side::-webkit-scrollbar-thumb { background: #3a352b; border-radius: 4px; }
+.admin-main::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+/* route-change loading bar: fixed overlay, zero layout impact */
+.route-loader {
+  position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 100;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright), var(--gold));
+  background-size: 200% 100%; animation: routeSlide 0.9s linear infinite;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s;
+}
+.route-loader.on { opacity: 1; }
+@keyframes routeSlide { to { background-position: -200% 0; } }
+
+/* busy buttons: spinner replaces label width-stable */
+.btn.busy { position: relative; color: transparent !important; pointer-events: none; }
+.btn.busy::after {
+  content: ""; position: absolute; top: 50%; left: 50%; width: 14px; height: 14px;
+  margin: -7px 0 0 -7px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+  border-radius: 50%; animation: btnSpin 0.7s linear infinite;
+}
+.btn.ghost.busy::after { border-color: rgba(20,18,15,0.25); border-top-color: var(--ink); }
+@keyframes btnSpin { to { transform: rotate(360deg); } }
+
+/* variant table: stone dots + per-row upload */
+.stone-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; box-shadow: inset 0 -2px 3px rgba(0,0,0,0.25); }
+.row-upload { border: 1px solid var(--line); background: var(--white); color: var(--ink-soft); border-radius: 4px; width: 30px; height: 30px; cursor: pointer; font-size: 0.75rem; }
+.row-upload:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+.row-upload:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* axis chips grouped per the design doc */
+.axis-lib { margin-bottom: 0.9rem; }
+.axis-lib .axis-group-label { font-family: var(--mono); font-size: 0.54rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-soft); margin: 0.7rem 0 0.35rem; }
+.axis-lib .axis-group-label:first-child { margin-top: 0; }
+
+/* grid blowout guard: wide tables inside grid columns must shrink the
+   column to the container, not push the sibling column out of the pane */
+.edit-grid > *, .split-2 > * { min-width: 0; }
