@@ -294,6 +294,7 @@ async function viewSettings() {
           <div class="form-row">
             <div class="field"><label>3rd email after 2nd (hours, 0 = off)</label><input id="sAb3" inputmode="numeric" value="${s["abandoned.third_reminder_hours"]}"></div>
             <div class="field"><label>Incentive code from email 2 (optional)</label><input id="sAbCode" value="${esc(s["abandoned.incentive_code"] || "")}" placeholder="e.g. COMEBACK10"></div>
+            <div class="field"><label>Review request after purchase (days, 0 = off)</label><input id="sRevDays" inputmode="numeric" value="${s["emails.review_request_days"]}"></div>
           </div>
         </div>
         <div class="panel pad">
@@ -327,6 +328,7 @@ async function viewSettings() {
         "abandoned.second_reminder_hours": parseInt(document.getElementById("sAb2").value, 10),
         "abandoned.third_reminder_hours": parseInt(document.getElementById("sAb3").value, 10),
         "abandoned.incentive_code": document.getElementById("sAbCode").value,
+        "emails.review_request_days": parseInt(document.getElementById("sRevDays").value, 10),
         "tax.default_pct": parseFloat(document.getElementById("sTaxDef").value) || 0,
         "tax.by_country": byCountry,
       } } });

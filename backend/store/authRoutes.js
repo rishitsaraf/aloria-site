@@ -28,6 +28,7 @@ async function register(req, res) {
   const user = r.rows[0];
   await auth.createSession(req, res, user.id);
   await cartLib.attachCartToUser(req, user);
+  emailLib.sendWelcome(user.email, user.name).catch(() => {}); // best-effort, never blocks signup
   json(res, 201, { ok: true, user: publicUser(user) });
 }
 

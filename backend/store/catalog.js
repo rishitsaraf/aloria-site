@@ -52,6 +52,11 @@ async function list(req, res) {
   let where = "p.status = 'active'";
   if (category) { params.push(category); where += ` AND p.category = $${params.length}`; }
   if (search) { params.push(`%${search}%`); where += ` AND (p.title ILIKE $${params.length} OR p.subtitle ILIKE $${params.length} OR p.description ILIKE $${params.length})`; }
+  const slugs = cleanString(q.slugs, { max: 1500 });
+  if (slugs) {
+    params.push(slugs.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 12));
+    where += ` AND p.slug = ANY($${params.length})`;
+  }
   const collection = cleanString(q.collection, { max: 80 });
   if (collection) {
     params.push(collection);
@@ -146,4 +151,38 @@ async function detail(req, res, params) {
   });
 }
 
-module.exports = { list, detail };
+/* "Complete the stack": a stack mixes categories, so recommendations lead
+   with pieces from the OTHER categories (in stock, featured first) and only
+   then fall back to siblings. */
+async function related(req, res, params) {
+  const pr = await db.query("SELECT id, category FROM products WHERE slug = $1 AND status = 'active'", [params.slug]);
+  const p = pr.rows[0];
+  if (!p) throw notFound("Product not found");
+  const r = await db.query(
+    `SELECT p.slug, p.title, p.subtitle, p.category, p.currency, p.images,
+            COALESCE(MIN(COALESCE(v.price_cents, p.price_cents)) FILTER (WHERE v.active), p.price_cents) AS price_from_cents,
+            COALESCE(SUM(v.stock) FILTER (WHERE v.active), 0)::int AS total_stock
+       FROM products p LEFT JOIN variants v ON v.product_id = p.id
+      WHERE p.status = 'active' AND p.id <> $1
+      GROUP BY p.id
+      ORDER BY (p.category = $2)::int ASC,
+               (COALESCE(SUM(v.stock) FILTER (WHERE v.active), 0) > 0)::int DESC,
+               p.featured DESC, p.id
+      LIMIT 4`,
+    [p.id, p.category]
+  );
+  json(res, 200, {
+    products: r.rows.map((x) => ({
+      slug: x.slug,
+      title: x.title,
+      subtitle: x.subtitle,
+      category: x.category,
+      currency: x.currency,
+      image: (x.images || [])[0] || null,
+      priceFromCents: x.price_from_cents,
+      inStock: x.total_stock > 0,
+    })),
+  });
+}
+
+module.exports = { list, detail, related };

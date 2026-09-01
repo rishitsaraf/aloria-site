@@ -161,6 +161,7 @@ async function init() {
   $("pSub").textContent = product.subtitle;
   $("pDesc").textContent = product.description;
   loadRelated();
+  loadRecent();
 
   // preselect single-value options; leave real choices open
   for (const o of product.options) if (o.values.length === 1) selection[o.name] = o.values[0];
@@ -389,25 +390,52 @@ async function loadReviews() {
   };
 }
 
-/* "Complete the stack" — other pieces from the same modular system. */
+function miniCard(p) {
+  return `
+    <a class="product-card" href="/shop/product?slug=${encodeURIComponent(p.slug)}">
+      <div class="ph">${p.image ? `<img src="${Store.esc(p.image)}" alt="${Store.esc(p.title)}" loading="lazy" decoding="async">` : ""}</div>
+      <div class="info">
+        <h3 class="serif">${Store.esc(p.title)}</h3>
+        <div class="price">From ${Store.money(p.priceFromCents, p.currency)}</div>
+      </div>
+    </a>`;
+}
+
+/* "Complete the stack" — component-aware: leads with pieces from the other
+   categories, because a stack is ear + neck + rings together. */
 async function loadRelated() {
   try {
-    const data = await Store.api(`products?category=${encodeURIComponent(product.category)}`);
-    const others = data.products.filter((p) => p.slug !== product.slug).slice(0, 4);
-    if (!others.length) return;
-    $("relatedMore").href = `/shop?category=${product.category}`;
-    $("relatedGrid").innerHTML = others.map((p) => `
-      <a class="product-card" href="/shop/product?slug=${encodeURIComponent(p.slug)}">
-        <div class="ph">${p.image ? `<img src="${Store.esc(p.image)}" alt="${Store.esc(p.title)}" loading="lazy">` : ""}</div>
-        <div class="info">
-          <h3 class="serif">${Store.esc(p.title)}</h3>
-          <div class="price">${p.priceFromCents === p.priceToCents
-            ? Store.money(p.priceFromCents, p.currency)
-            : `From ${Store.money(p.priceFromCents, p.currency)}`}</div>
-        </div>
-      </a>`).join("");
+    const data = await Store.api(`products/${encodeURIComponent(product.slug)}/related`);
+    if (!data.products.length) return;
+    $("relatedMore").href = "/shop";
+    $("relatedGrid").innerHTML = data.products.map(miniCard).join("");
     $("related").hidden = false;
   } catch (_) { /* cross-sell is optional */ }
+}
+
+/* Recently viewed — kept in this browser only (localStorage). */
+function trackRecent() {
+  try {
+    const key = "aloria_recent";
+    let list = JSON.parse(localStorage.getItem(key) || "[]");
+    if (!Array.isArray(list)) list = [];
+    list = [product.slug, ...list.filter((s) => s !== product.slug)].slice(0, 9);
+    localStorage.setItem(key, JSON.stringify(list));
+    return list;
+  } catch (_) { return []; }
+}
+
+async function loadRecent() {
+  const list = trackRecent().filter((s) => s !== product.slug).slice(0, 4);
+  if (!list.length) return;
+  try {
+    const data = await Store.api(`products?slugs=${encodeURIComponent(list.join(","))}`);
+    const bySlug = new Map(data.products.map((p) => [p.slug, p]));
+    const ordered = list.map((s) => bySlug.get(s)).filter(Boolean);
+    if (!ordered.length) return;
+    $("recentGrid").innerHTML = ordered.map(miniCard).join("");
+    $("recent").hidden = false;
+  } catch (_) { /* optional */ }
 }
 
 Store.nav("shop");

@@ -111,6 +111,36 @@ async function expireStalePendingOrders() {
   return { cancelled: r.rows.length };
 }
 
+/** Lifecycle: ask for a review a few days after purchase — once per order. */
+async function sendReviewRequests() {
+  const days = await settings.get("emails.review_request_days");
+  if (!days || days <= 0) return { reviewRequestsSent: 0 };
+  const r = await db.query(
+    `SELECT * FROM orders
+      WHERE status IN ('paid', 'fulfilled') AND review_request_at IS NULL
+        AND created_at < now() - make_interval(days => $1)
+      LIMIT 50`,
+    [days]
+  );
+  let sent = 0;
+  for (const order of r.rows) {
+    const items = await db.query(
+      `SELECT DISTINCT p.slug, oi.product_title FROM order_items oi
+         JOIN variants v ON v.id = oi.variant_id
+         JOIN products p ON p.id = v.product_id
+        WHERE oi.order_id = $1`,
+      [order.id]
+    );
+    // mark first — a crash mid-send must not spam the customer next hour
+    await db.query("UPDATE orders SET review_request_at = now() WHERE id = $1", [order.id]);
+    if (items.rows.length) {
+      const result = await emailLib.sendReviewRequest(order, items.rows).catch(() => ({ ok: false }));
+      if (result.ok) sent++;
+    }
+  }
+  return { reviewRequestsSent: sent };
+}
+
 /** Scheduled publishing: drafts go live when their moment arrives. */
 async function publishScheduled() {
   const r = await db.query(
@@ -128,8 +158,9 @@ async function sweep(req, res) {
   const orders = await expireStalePendingOrders();
   const published = await publishScheduled();
   const alerts = await wishlist.sendStockAlerts();
+  const reviewAsks = await sendReviewRequests();
   await authLib.pruneSessions();
-  json(res, 200, { ok: true, ...carts, ...reminders, ...orders, ...published, ...alerts });
+  json(res, 200, { ok: true, ...carts, ...reminders, ...orders, ...published, ...alerts, ...reviewAsks });
 }
 
 module.exports = { sweep };

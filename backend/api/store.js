@@ -59,6 +59,7 @@ const ROUTES = [
   ["GET", "products", catalog.list],
   ["GET", "products/:slug", catalog.detail],
   ["GET", "products/:slug/reviews", reviews.listForProduct],
+  ["GET", "products/:slug/related", catalog.related],
   ["POST", "products/:slug/reviews", reviews.create],
   ["GET", "content", content.content],
   ["GET", "pages/:slug", content.pageDetail],

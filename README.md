@@ -33,6 +33,7 @@ Postgres. No framework, no build step.
 - **Content & Pages** — announcement bar, landing hero and category tiles edited in the CMS; markdown-lite static pages published to the storefront footer.
 - **Settings** — shipping rates, free-shipping threshold, abandoned-cart timing, tax (default % + per-country) stored in the DB; integration status panel (payment gateway / Resend / Blob / cron).
 - **Staff & security** — viewer/editor/admin roles, staff invites, an audit log of every CMS write, TOTP two-factor auth, and sign-out-everywhere.
+- **Lifecycle emails** — welcome on signup, the 3-touch abandoned-bag ladder, shipping confirmation, back-in-stock alerts, and a post-purchase review request (days configurable, 0 = off) — each sent exactly once per trigger.
 - **Emails** — preview every transactional template with sample data and send yourself a test; waitlist CSV export + broadcast.
 
 ## Structure

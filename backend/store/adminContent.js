@@ -25,7 +25,7 @@ async function putSettings(req, res) {
   const body = (req.body || {}).settings || {};
   const patch = {};
   const intKeys = ["shipping.flat_cents", "shipping.free_threshold_cents", "abandoned.minutes",
-    "abandoned.second_reminder_hours", "abandoned.third_reminder_hours"];
+    "abandoned.second_reminder_hours", "abandoned.third_reminder_hours", "emails.review_request_days"];
   for (const key of intKeys) {
     if (body[key] !== undefined) patch[key] = cleanInt(body[key], { name: key, min: 0, max: 10_000_000 });
   }

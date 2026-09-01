@@ -145,6 +145,45 @@ async function sendShippingConfirmation(order, items) {
   return send({ to: order.email, ...buildShippingConfirmation(order, items) });
 }
 
+function buildWelcome(name) {
+  const first = escapeHtml(String(name || "").split(" ")[0] || "there");
+  const html = layout("Welcome to the atelier", `
+    <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
+      Hi ${first} — welcome to Aloria. Two platings, five stone shapes, four stone
+      colors: every piece is a component, and every stack is yours to compose.
+    </p>
+    <p style="text-align:center;margin:26px 0 6px;">
+      <a href="${siteUrl("/shop")}" style="background:#14120f;color:#ffffff;text-decoration:none;padding:12px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">Start your stack</a>
+    </p>`);
+  return { subject: "Welcome to Aloria", html, text: `Welcome to Aloria. Start your stack: ${siteUrl("/shop")}` };
+}
+
+async function sendWelcome(to, name) {
+  return send({ to, ...buildWelcome(name) });
+}
+
+function buildReviewRequest(order, items) {
+  const first = escapeHtml(String(order.shipping_name || "").split(" ")[0] || "there");
+  const links = items.map((i) =>
+    `<li style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.9;">
+       <a href="${siteUrl(`/shop/product?slug=${encodeURIComponent(i.slug)}`)}" style="color:#8a6d2f;">${escapeHtml(i.product_title)}</a></li>`).join("");
+  const html = layout("How are they wearing?", `
+    <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
+      Hi ${first} — your pieces from order ${escapeHtml(order.number)} should be settled
+      into the rotation by now. A short review helps other stackers choose well.
+    </p>
+    <ul style="padding-left:18px;margin:14px 0;">${links}</ul>`);
+  return {
+    subject: "How are your Aloria pieces wearing?",
+    html,
+    text: `How are your pieces from order ${order.number}? Leave a review: ${siteUrl("/shop")}`,
+  };
+}
+
+async function sendReviewRequest(order, items) {
+  return send({ to: order.email, ...buildReviewRequest(order, items) });
+}
+
 function buildStockAlert(row) {
   const label = Object.values(row.options || {}).join(" · ");
   const link = siteUrl(`/shop/product?slug=${encodeURIComponent(row.slug)}`);
@@ -173,5 +212,7 @@ function buildAnnouncement(subject, message) {
 module.exports = {
   send, siteUrl,
   sendOrderConfirmation, sendCartRecovery, sendPasswordReset, sendShippingConfirmation, sendStockAlert,
-  buildOrderConfirmation, buildCartRecovery, buildPasswordReset, buildShippingConfirmation, buildAnnouncement, buildStockAlert,
+  sendWelcome, sendReviewRequest,
+  buildOrderConfirmation, buildCartRecovery, buildPasswordReset, buildShippingConfirmation, buildAnnouncement,
+  buildStockAlert, buildWelcome, buildReviewRequest,
 };
