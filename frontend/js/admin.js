@@ -441,7 +441,7 @@ async function viewProductEditor(idOrNew) {
   if (idOrNew === "new") {
     ed = {
       isNew: true,
-      product: { title: "", subtitle: "", slug: "", description: "", category: "ear", status: "draft", price_cents: 0, images: [], options: [], featured: false, seo_title: "", seo_description: "", publish_at: null },
+      product: { title: "", subtitle: "", slug: "", description: "", category: "ear", status: "draft", price_cents: 0, images: [], options: [], featured: false, seo_title: "", seo_description: "", video_url: "", publish_at: null },
       variants: [],
     };
   } else {
@@ -486,6 +486,7 @@ function renderEditor() {
             <div class="field"><label>Publish at (drafts go live automatically)</label><input id="ePublishAt" type="datetime-local" value="${p.publish_at ? toLocalInput(p.publish_at) : ""}"></div>
           </div>
           <div class="field"><label>SEO description (optional)</label><input id="eSeoDesc" value="${esc(p.seo_description || "")}" maxlength="170"></div>
+          <div class="field"><label>Video URL (optional — "worn &amp; moving" clip on the product page)</label><input id="eVideoUrl" value="${esc(p.video_url || "")}" placeholder="https://… or /assets/video/…"></div>
         </div>
         ${ed.isNew ? "" : renderVariantsPanel()}
       </div>
@@ -619,6 +620,7 @@ function collectEditorFields() {
   p.featured = document.getElementById("eFeatured").checked;
   p.seo_title = document.getElementById("eSeoTitle").value;
   p.seo_description = document.getElementById("eSeoDesc").value;
+  p.video_url = document.getElementById("eVideoUrl").value.trim();
   p.publish_at = document.getElementById("ePublishAt").value || null;
   p.images = [...document.querySelectorAll("[data-img-input]")].map((i) => i.value.trim()).filter(Boolean);
   p.options = [...document.querySelectorAll("[data-opt]")].map((row) => {
@@ -636,7 +638,7 @@ function productBody() {
     title: p.title, subtitle: p.subtitle, description: p.description,
     category: p.category, status: p.status, price_cents: p.price_cents,
     images: p.images, options: p.options, featured: p.featured,
-    seo_title: p.seo_title, seo_description: p.seo_description,
+    seo_title: p.seo_title, seo_description: p.seo_description, video_url: p.video_url || "",
     publish_at: p.publish_at ? new Date(p.publish_at).toISOString() : null,
   };
   if (p.slug) body.slug = p.slug;

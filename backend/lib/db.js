@@ -272,7 +272,18 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id, status, created_at);
 
+CREATE TABLE IF NOT EXISTS contact_messages (
+  id         BIGSERIAL PRIMARY KEY,
+  name       TEXT NOT NULL,
+  email      TEXT NOT NULL,
+  subject    TEXT NOT NULL DEFAULT '',
+  message    TEXT NOT NULL,
+  handled    BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- column additions for existing deployments (idempotent)
+ALTER TABLE products  ADD COLUMN IF NOT EXISTS video_url TEXT NOT NULL DEFAULT '';
 ALTER TABLE orders    ADD COLUMN IF NOT EXISTS payment_provider TEXT NOT NULL DEFAULT '';
 ALTER TABLE products  ADD COLUMN IF NOT EXISTS seo_title TEXT NOT NULL DEFAULT '';
 ALTER TABLE products  ADD COLUMN IF NOT EXISTS seo_description TEXT NOT NULL DEFAULT '';

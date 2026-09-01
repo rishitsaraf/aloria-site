@@ -4,11 +4,13 @@
 const CAT_TITLES = { ear: "Ear", neck: "Neck", rings: "Rings" };
 let page = 1;
 
-function cardHtml(p) {
+function cardHtml(p, i = 99) {
+  // above-the-fold cards load eagerly (LCP in browse mode); the rest stay lazy
+  const load = i < 4 ? 'decoding="async"' : 'loading="lazy" decoding="async"';
   return `
     <a class="product-card" href="/shop/product?slug=${encodeURIComponent(p.slug)}">
       <div class="ph">
-        ${p.image ? `<img src="${Store.esc(p.image)}" alt="${Store.esc(p.title)}" loading="lazy">` : ""}
+        ${p.image ? `<img src="${Store.esc(p.image)}" alt="${Store.esc(p.title)}" ${load}>` : ""}
         ${p.hoverImage ? `<img class="hover" src="${Store.esc(p.hoverImage)}" alt="" loading="lazy">` : ""}
         ${!p.inStock ? '<span class="badge soldout">Sold out</span>' : (p.featured ? '<span class="badge featured">Signature</span>' : "")}
       </div>
@@ -94,7 +96,7 @@ async function loadShop({ append = false } = {}) {
       return;
     }
     document.getElementById("emptyState").hidden = true;
-    const html = data.products.map(cardHtml).join("");
+    const html = data.products.map((p, i) => cardHtml(p, append ? 99 : i)).join("");
     if (append) grid.insertAdjacentHTML("beforeend", html);
     else grid.innerHTML = html;
     more.hidden = page >= data.pageCount;

@@ -298,3 +298,27 @@ body.has-announce .store-main { padding-top: 8.2rem; }
 .card-rating { margin-top: 0.2rem; font-size: 0.78rem; }
 .card-rating .stars { color: var(--gold-ink); letter-spacing: 0.08em; }
 .card-rating .n { color: var(--ink-soft); font-size: 0.72rem; }
+
+/* ============================================================
+   Phase C2 — PDP depth: zoom, video, trust strip
+   ============================================================ */
+.pdp-gallery .main.zoomable { cursor: zoom-in; }
+.pdp-gallery .main.zoomable.zoomed { cursor: zoom-out; }
+.pdp-gallery .main img { transition: transform 0.25s ease; will-change: transform; }
+.pdp-gallery .main.zoomed img { transform: scale(2.2); }
+.pdp-gallery .main.zoomable:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
+
+.pdp-video { margin-top: 1rem; }
+.pdp-video video { width: 100%; border-radius: 6px; border: 1px solid var(--line); background: var(--ink); }
+.pdp-video .eyebrow { margin-bottom: 0.4rem; }
+
+.trust-strip { list-style: none; margin: 1.4rem 0 0; padding: 0.9rem 0 0; border-top: 1px solid var(--line); display: grid; gap: 0.4rem; }
+.trust-strip li { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); }
+
+/* contact page */
+.contact-wrap { max-width: 560px; }
+.contact-wrap p.lede { color: var(--ink-soft); margin-bottom: 1.6rem; }
+.contact-form { display: grid; gap: 0.9rem; }
+.contact-form label { display: grid; gap: 0.3rem; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+.contact-form input, .contact-form textarea { border: 1px solid var(--line); padding: 0.7rem 0.9rem; font-family: var(--sans); font-size: 16px; background: var(--white); outline: none; }
+.contact-form input:focus, .contact-form textarea:focus { border-color: var(--gold); }

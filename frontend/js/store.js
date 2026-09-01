@@ -151,9 +151,10 @@ const Store = {
     document.body.appendChild(f);
     Store.content().then((c) => {
       const links = document.getElementById("footLinks");
-      if (links && c.pages && c.pages.length) {
-        links.innerHTML = c.pages.map((p) =>
-          `<a href="/p?slug=${encodeURIComponent(p.slug)}">${Store.esc(p.title)}</a>`).join("");
+      if (links) {
+        links.innerHTML = (c.pages || []).map((p) =>
+          `<a href="/p?slug=${encodeURIComponent(p.slug)}">${Store.esc(p.title)}</a>`).join("") +
+          '<a href="/contact">Contact</a>';
       }
     });
   },

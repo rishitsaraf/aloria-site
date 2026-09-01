@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact — ALORIA</title>
+<meta name="description" content="Questions about a piece, an order or a stack? Write to the Aloria atelier.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/shop.css">
+</head>
+<body>
+
+<main class="store-main">
+  <div class="contact-wrap">
+    <div class="eyebrow">The atelier</div>
+    <h1 class="serif">Contact</h1>
+    <p class="lede">A question about a piece, an order, or which stones stack well together — write to us and we'll come back within a working day.</p>
+    <form class="contact-form" id="contactForm" novalidate>
+      <label>Name<input id="cfName" maxlength="80" required autocomplete="name"></label>
+      <label>Email<input id="cfEmail" type="email" maxlength="254" required autocomplete="email"></label>
+      <label>Subject<input id="cfSubject" maxlength="140" placeholder="Order number, piece, anything"></label>
+      <label>Message<textarea id="cfMessage" rows="6" maxlength="4000" required></textarea></label>
+      <div>
+        <button class="btn" type="submit" id="cfSend">Send message</button>
+      </div>
+      <div class="form-msg" id="cfMsg" aria-live="polite"></div>
+    </form>
+  </div>
+</main>
+
+<script src="/js/store.js"></script>
+<script>
+  Store.nav("");
+  Store.footer();
+  document.getElementById("contactForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("cfMsg");
+    const btn = document.getElementById("cfSend");
+    btn.disabled = true;
+    try {
+      await Store.api("contact", { method: "POST", body: {
+        name: document.getElementById("cfName").value,
+        email: document.getElementById("cfEmail").value,
+        subject: document.getElementById("cfSubject").value,
+        message: document.getElementById("cfMessage").value,
+      } });
+      msg.className = "form-msg ok";
+      msg.textContent = "Sent — we'll reply to your email soon.";
+      e.target.reset();
+    } catch (err) {
+      msg.className = "form-msg err";
+      msg.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

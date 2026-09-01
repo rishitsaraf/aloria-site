@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ALORIA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/css/style.css">
@@ -16,8 +17,12 @@
   <nav class="crumbs" id="crumbs" hidden aria-label="Breadcrumb"></nav>
   <div id="pdp" class="pdp" hidden>
     <div class="pdp-gallery">
-      <div class="main"><img id="mainImg" alt=""></div>
+      <div class="main" id="mainWrap"><img id="mainImg" alt="" fetchpriority="high" decoding="async"></div>
       <div class="pdp-thumbs" id="thumbs"></div>
+      <div class="pdp-video" id="pdpVideo" hidden>
+        <div class="eyebrow">Worn &amp; moving</div>
+        <video id="pdpVideoEl" controls playsinline preload="metadata"></video>
+      </div>
     </div>
     <div class="pdp-info">
       <div class="eyebrow" id="pCat"></div>
@@ -36,6 +41,11 @@
         <button class="btn" id="addBtn" disabled>Select options</button>
       </div>
       <div class="form-msg" id="pdpMsg" aria-live="polite"></div>
+      <ul class="trust-strip" aria-label="Why shop with Aloria">
+        <li>◈ 925 sterling silver · hypoallergenic</li>
+        <li id="trustShip" hidden></li>
+        <li>◈ Secure checkout · 30-day returns</li>
+      </ul>
     </div>
   </div>
   <div class="empty-state" id="pdpEmpty" hidden>

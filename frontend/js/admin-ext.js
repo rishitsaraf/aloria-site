@@ -605,6 +605,55 @@ async function viewManualOrder() {
   });
 }
 
+/* ================= Inbox (contact messages) ================= */
+
+async function viewInbox() {
+  const state = viewInbox.state || (viewInbox.state = { open: true });
+  const { messages, openCount } = await Store.api(`admin/contact${state.open ? "?open=1" : ""}`);
+  $m().innerHTML = `
+    <div class="admin-head"><h1 class="serif">Inbox</h1>
+      <span class="mono" style="font-size:0.62rem;color:var(--ink-soft)">${openCount} open</span></div>
+    <div class="panel">
+      <div class="panel-head"><div class="toolbar">
+        <button class="filter-btn ${state.open ? "active" : ""}" id="ibOpen" type="button" style="border-radius:100px">Open (${openCount})</button>
+        <button class="filter-btn ${state.open ? "" : "active"}" id="ibAll" type="button" style="border-radius:100px">All</button>
+      </div></div>
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>When</th><th>From</th><th>Subject</th><th>Message</th><th></th></tr></thead>
+        <tbody>${messages.map((m) => `
+          <tr ${m.handled ? 'style="opacity:0.55"' : ""}>
+            <td class="mono-cell">${dt(m.created_at)}</td>
+            <td>${esc(m.name)}<div class="mono" style="font-size:0.58rem"><a href="mailto:${esc(m.email)}">${esc(m.email)}</a></div></td>
+            <td>${esc(m.subject || "—")}</td>
+            <td style="max-width:380px;color:var(--ink-soft)">${esc(m.message)}</td>
+            <td><div style="display:flex;gap:0.3rem">
+              <button class="btn ghost small" data-ib-done="${m.id}" data-ib-handled="${m.handled ? "0" : "1"}" type="button">${m.handled ? "Reopen" : "Done"}</button>
+              <button class="btn ghost small" data-ib-del="${m.id}" type="button">Delete</button>
+            </div></td>
+          </tr>`).join("") || '<tr><td colspan="5" style="color:var(--ink-soft)">No messages</td></tr>'}
+        </tbody></table></div>
+    </div>`;
+  document.getElementById("ibOpen").onclick = () => { state.open = true; viewInbox(); };
+  document.getElementById("ibAll").onclick = () => { state.open = false; viewInbox(); };
+  document.querySelectorAll("[data-ib-done]").forEach((b) => {
+    b.onclick = () => withBusy(b, async () => {
+      try {
+        await Store.api(`admin/contact/${b.dataset.ibDone}`, { method: "PATCH", body: { handled: b.dataset.ibHandled === "1" } });
+        viewInbox();
+      } catch (e) { Store.toast(e.message); }
+    });
+  });
+  document.querySelectorAll("[data-ib-del]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Delete this message?")) return;
+      try {
+        await Store.api(`admin/contact/${b.dataset.ibDel}`, { method: "DELETE" });
+        viewInbox();
+      } catch (e) { Store.toast(e.message); }
+    };
+  });
+}
+
 /* ================= Reviews (moderation queue) ================= */
 
 async function viewReviews() {
@@ -683,6 +732,7 @@ async function viewReviews() {
 /* routes merged into admin.js's table */
 window.EXT_ROUTES = [
   [/^#\/reviews$/, viewReviews],
+  [/^#\/inbox$/, viewInbox],
   [/^#\/inventory$/, viewInventory],
   [/^#\/inventory\/movements$/, viewMovements],
   [/^#\/collections$/, viewCollections],

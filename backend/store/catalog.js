@@ -88,6 +88,7 @@ async function detail(req, res, params) {
       images: p.images || [],
       options: p.options || [],
       tags: p.tags || [],
+      videoUrl: p.video_url || "",
       seoTitle: p.seo_title || "",
       seoDescription: p.seo_description || "",
       rating: await reviewsLib.summaryFor(p.id),

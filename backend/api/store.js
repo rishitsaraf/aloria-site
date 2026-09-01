@@ -22,6 +22,7 @@ const adminOps = require("../store/adminOps");
 const adminContent = require("../store/adminContent");
 const adminStaff = require("../store/adminStaff");
 const reviews = require("../store/reviews");
+const contact = require("../store/contact");
 const seed = require("../store/seed");
 const cron = require("../store/cron");
 const sitemap = require("../store/sitemap");
@@ -59,6 +60,7 @@ const ROUTES = [
   ["POST", "products/:slug/reviews", reviews.create],
   ["GET", "content", content.content],
   ["GET", "pages/:slug", content.pageDetail],
+  ["POST", "contact", contact.submit],
 
   // cart
   ["GET", "cart", cartRoutes.get],
@@ -122,6 +124,9 @@ const ROUTES = [
   ["GET", "admin/reviews", staff(reviews.adminList)],
   ["PATCH", "admin/reviews/:id", staff(reviews.adminUpdate)],
   ["DELETE", "admin/reviews/:id", staff(reviews.adminDelete)],
+  ["GET", "admin/contact", staff(contact.adminList)],
+  ["PATCH", "admin/contact/:id", staff(contact.adminUpdate)],
+  ["DELETE", "admin/contact/:id", staff(contact.adminDelete)],
   ["POST", "admin/waitlist/broadcast", staff(adminOps.broadcastWaitlist, "admin")],
 
   // ---- CMS: content, pages, collections

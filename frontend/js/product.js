@@ -166,6 +166,18 @@ async function init() {
   syncState();
 
   loadReviews();
+  initZoom();
+  if (product.videoUrl) {
+    $("pdpVideo").hidden = false;
+    $("pdpVideoEl").src = product.videoUrl;
+  }
+  Store.content().then((c) => {
+    const t = c.shipping && c.shipping.freeThresholdCents;
+    if (t > 0) {
+      $("trustShip").hidden = false;
+      $("trustShip").textContent = `◈ Free shipping over ${Store.money(t, product.currency)}`;
+    }
+  }).catch(() => {});
   $("addBtn").onclick = addToBag;
   $("qtyMinus").onclick = () => { $("qtyInput").value = Math.max(1, (parseInt($("qtyInput").value, 10) || 1) - 1); };
   $("qtyPlus").onclick = () => { $("qtyInput").value = Math.min(10, (parseInt($("qtyInput").value, 10) || 1) + 1); };
@@ -207,6 +219,30 @@ function injectSeo() {
   s.type = "application/ld+json";
   s.textContent = JSON.stringify(ld);
   document.head.appendChild(s);
+}
+
+/* Image zoom — hover magnifies around the cursor; click (or tap) toggles,
+   so it works for touch and keyboard too. */
+function initZoom() {
+  const wrap = $("mainWrap"), img = $("mainImg");
+  if (!wrap || !img) return;
+  wrap.classList.add("zoomable");
+  wrap.setAttribute("tabindex", "0");
+  wrap.setAttribute("role", "button");
+  wrap.setAttribute("aria-label", "Zoom product image");
+  const setOrigin = (e) => {
+    const r = wrap.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * 100;
+    const y = ((e.clientY - r.top) / r.height) * 100;
+    img.style.transformOrigin = `${x}% ${y}%`;
+  };
+  wrap.addEventListener("mousemove", (e) => { if (wrap.classList.contains("zoomed")) setOrigin(e); });
+  wrap.addEventListener("click", (e) => { setOrigin(e); wrap.classList.toggle("zoomed"); });
+  wrap.addEventListener("mouseleave", () => wrap.classList.remove("zoomed"));
+  wrap.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); wrap.classList.toggle("zoomed"); }
+    if (e.key === "Escape") wrap.classList.remove("zoomed");
+  });
 }
 
 /* ---------------- Reviews ---------------- */

@@ -8,10 +8,12 @@ const { json, notFound, cleanString } = require("../lib/http");
 /** One round-trip for the storefront shell: bar + hero + tiles + collections
     + published page links for the footer. */
 async function content(req, res) {
-  const [announcement, hero, tiles, collections, pages] = await Promise.all([
+  const [announcement, hero, tiles, shipFlat, shipFree, collections, pages] = await Promise.all([
     settings.get("content.announcement"),
     settings.get("content.hero"),
     settings.get("content.tiles"),
+    settings.get("shipping.flat_cents"),
+    settings.get("shipping.free_threshold_cents"),
     db.query(
       `SELECT c.slug, c.title, c.image, COUNT(pc.product_id)::int AS products
          FROM collections c LEFT JOIN product_collections pc ON pc.collection_id = c.id
@@ -24,6 +26,7 @@ async function content(req, res) {
     announcement,
     hero,
     tiles,
+    shipping: { flatCents: shipFlat, freeThresholdCents: shipFree },
     collections: collections.rows,
     pages: pages.rows,
   });

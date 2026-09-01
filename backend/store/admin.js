@@ -185,6 +185,11 @@ function productFields(body, { partial = false } = {}) {
   if (has("options")) out.options = JSON.stringify(cleanOptions(body.options));
   if (has("tags")) out.tags = JSON.stringify(Array.isArray(body.tags) ? body.tags.slice(0, 20).map((t) => cleanString(t, { max: 40 })) : []);
   if (has("featured")) out.featured = Boolean(body.featured);
+  if (has("video_url")) {
+    const vu = cleanString(body.video_url, { name: "Video URL", max: 500 });
+    if (vu && !/^(https:\/\/|\/)/.test(vu)) throw badRequest("Video URL must be https:// or a site path");
+    out.video_url = vu;
+  }
   if (has("seo_title")) out.seo_title = cleanString(body.seo_title, { name: "SEO title", max: 70 });
   if (has("seo_description")) out.seo_description = cleanString(body.seo_description, { name: "SEO description", max: 170 });
   if (has("publish_at")) {
