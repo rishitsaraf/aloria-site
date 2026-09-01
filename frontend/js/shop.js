@@ -59,11 +59,52 @@ async function applyContent() {
   }
 }
 
+/* Facets & sort live in the URL, so filtered views are shareable and
+   crawlable. Changing a control rewrites the query string and reloads. */
+function facetState() {
+  return {
+    plating: Store.qs("plating") || "",
+    stone: Store.qs("stone") || "",
+    shape: Store.qs("shape") || "",
+    price: Store.qs("price") || "",
+    sort: Store.qs("sort") || "",
+  };
+}
+
+function wireFacets() {
+  const f = facetState();
+  document.getElementById("fPlating").value = f.plating;
+  document.getElementById("fStone").value = f.stone;
+  document.getElementById("fShape").value = f.shape;
+  document.getElementById("fPrice").value = f.price;
+  document.getElementById("fSort").value = f.sort;
+  const anyActive = f.plating || f.stone || f.shape || f.price || f.sort;
+  document.getElementById("fClear").hidden = !anyActive;
+
+  const apply = () => {
+    const params = new URLSearchParams(location.search);
+    for (const sel of document.querySelectorAll("[data-facet]")) {
+      if (sel.value) params.set(sel.dataset.facet, sel.value);
+      else params.delete(sel.dataset.facet);
+    }
+    location.search = params.toString();
+  };
+  document.querySelectorAll("[data-facet]").forEach((sel) => { sel.onchange = apply; });
+  document.getElementById("fClear").onclick = () => {
+    const params = new URLSearchParams(location.search);
+    ["plating", "stone", "shape", "price", "sort"].forEach((k) => params.delete(k));
+    location.search = params.toString();
+  };
+  return f;
+}
+
 async function loadShop({ append = false } = {}) {
   const category = Store.qs("category") || "";
   const q = Store.qs("q") || "";
   const collection = Store.qs("collection") || "";
-  const landing = !category && !q && !collection;
+  const facets = facetState();
+  const filtered = facets.plating || facets.stone || facets.shape || facets.price || facets.sort;
+  const landing = !category && !q && !collection && !filtered;
 
   document.getElementById("landing").hidden = !landing;
   document.querySelectorAll(".filter-btn").forEach((b) => {
@@ -81,6 +122,15 @@ async function loadShop({ append = false } = {}) {
     if (category) params.set("category", category);
     if (q) params.set("q", q);
     if (collection) params.set("collection", collection);
+    if (facets.plating) params.set("plating", facets.plating);
+    if (facets.stone) params.set("stone", facets.stone);
+    if (facets.shape) params.set("shape", facets.shape);
+    if (facets.sort) params.set("sort", facets.sort);
+    if (facets.price) {
+      const [lo, hi] = facets.price.split("-");
+      if (lo) params.set("pmin", lo);
+      if (hi) params.set("pmax", hi);
+    }
     params.set("page", String(page));
     const data = await Store.api(`products?${params}`);
     document.getElementById("shopCount").textContent = `${data.total} piece${data.total === 1 ? "" : "s"}`;
@@ -112,6 +162,7 @@ async function loadShop({ append = false } = {}) {
 Store.nav("shop");
 Store.footer();
 applyContent();
+wireFacets();
 loadShop();
 document.getElementById("loadMore").onclick = () => { page += 1; loadShop({ append: true }); };
 document.getElementById("searchForm").addEventListener("submit", (ev) => {

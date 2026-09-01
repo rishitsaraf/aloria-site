@@ -26,6 +26,23 @@ function shapeCard(p) {
   };
 }
 
+/* Faceted navigation: a facet narrows to products with at least one active
+   variant matching EVERY selected axis value — "is this piece made in
+   Gold + Emerald + Round?" — not merely one variant per facet. */
+const FACET_AXES = [
+  ["plating", "Plating"],
+  ["stone", "Stone Color"],
+  ["shape", "Stone Shape"],
+];
+
+const SORTS = {
+  featured: "p.featured DESC, p.category, p.id",
+  newest: "p.created_at DESC, p.id DESC",
+  price_asc: "price_from_cents ASC, p.id",
+  price_desc: "price_from_cents DESC, p.id",
+  rating: "rv.rating_avg DESC NULLS LAST, rv.rating_count DESC NULLS LAST, p.id",
+};
+
 async function list(req, res) {
   const q = req.query || {};
   const category = ["ear", "neck", "rings"].includes(q.category) ? q.category : null;
@@ -42,10 +59,32 @@ async function list(req, res) {
                             WHERE pc.product_id = p.id AND c.slug = $${params.length})`;
   }
 
+  const facetConds = [];
+  for (const [param, optionName] of FACET_AXES) {
+    const val = cleanString(q[param], { max: 40 });
+    if (!val) continue;
+    params.push(optionName);
+    const ki = params.length;
+    params.push(val);
+    facetConds.push(`vf.options->>$${ki} = $${params.length}`);
+  }
+  if (facetConds.length) {
+    where += ` AND EXISTS (SELECT 1 FROM variants vf WHERE vf.product_id = p.id AND vf.active AND ${facetConds.join(" AND ")})`;
+  }
+
+  const priceExpr = "COALESCE(MIN(COALESCE(v.price_cents, p.price_cents)) FILTER (WHERE v.active), p.price_cents)";
+  const havings = [];
+  const pmin = parseInt(q.pmin, 10);
+  const pmax = parseInt(q.pmax, 10);
+  if (Number.isInteger(pmin) && pmin >= 0) { params.push(pmin); havings.push(`${priceExpr} >= $${params.length}`); }
+  if (Number.isInteger(pmax) && pmax > 0) { params.push(pmax); havings.push(`${priceExpr} <= $${params.length}`); }
+
+  const orderBy = SORTS[q.sort] || SORTS.featured;
+
   params.push(PAGE_SIZE, (page - 1) * PAGE_SIZE);
   const r = await db.query(
     `SELECT p.slug, p.title, p.subtitle, p.category, p.currency, p.images, p.featured,
-            COALESCE(MIN(COALESCE(v.price_cents, p.price_cents)) FILTER (WHERE v.active), p.price_cents) AS price_from_cents,
+            ${priceExpr} AS price_from_cents,
             COALESCE(MAX(COALESCE(v.price_cents, p.price_cents)) FILTER (WHERE v.active), p.price_cents) AS price_to_cents,
             COALESCE(SUM(v.stock) FILTER (WHERE v.active), 0)::int AS total_stock,
             rv.rating_avg, rv.rating_count,
@@ -55,7 +94,8 @@ async function list(req, res) {
                     FROM reviews WHERE status = 'approved' GROUP BY product_id) rv ON rv.product_id = p.id
       WHERE ${where}
       GROUP BY p.id, rv.rating_avg, rv.rating_count
-      ORDER BY p.featured DESC, p.category, p.id
+      ${havings.length ? `HAVING ${havings.join(" AND ")}` : ""}
+      ORDER BY ${orderBy}
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
   );

@@ -66,6 +66,37 @@
     <button class="filter-btn" data-cat="rings">Rings</button>
   </div>
 
+  <div class="facet-row" id="facetRow" aria-label="Filter and sort">
+    <label>Plating
+      <select id="fPlating" data-facet="plating">
+        <option value="">All</option><option>Gold</option><option>Rhodium</option>
+      </select></label>
+    <label>Stone
+      <select id="fStone" data-facet="stone">
+        <option value="">All</option><option>Crystal</option><option>Emerald</option><option>Sapphire</option><option>Ruby</option>
+      </select></label>
+    <label>Shape
+      <select id="fShape" data-facet="shape">
+        <option value="">All</option><option>Round</option><option>Oval</option><option>Pear</option><option>Emerald Cut</option><option>Heart</option>
+      </select></label>
+    <label>Price
+      <select id="fPrice" data-facet="price">
+        <option value="">All</option>
+        <option value="0-5000">Under $50</option>
+        <option value="5000-10000">$50 – $100</option>
+        <option value="10000-">$100+</option>
+      </select></label>
+    <label>Sort
+      <select id="fSort" data-facet="sort">
+        <option value="">Featured</option>
+        <option value="newest">Newest</option>
+        <option value="price_asc">Price ↑</option>
+        <option value="price_desc">Price ↓</option>
+        <option value="rating">Top rated</option>
+      </select></label>
+    <button class="filter-btn" id="fClear" type="button" hidden>Clear ✕</button>
+  </div>
+
   <div class="product-grid" id="grid"></div>
   <div class="load-more-wrap"><button class="btn ghost" id="loadMore" hidden>Load more</button></div>
   <div class="empty-state" id="emptyState" hidden>

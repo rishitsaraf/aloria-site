@@ -322,3 +322,15 @@ body.has-announce .store-main { padding-top: 8.2rem; }
 .contact-form label { display: grid; gap: 0.3rem; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
 .contact-form input, .contact-form textarea { border: 1px solid var(--line); padding: 0.7rem 0.9rem; font-family: var(--sans); font-size: 16px; background: var(--white); outline: none; }
 .contact-form input:focus, .contact-form textarea:focus { border-color: var(--gold); }
+
+/* ============================================================
+   Phase C4 — faceted filters & sorting
+   ============================================================ */
+.facet-row { display: flex; gap: 0.9rem; align-items: end; flex-wrap: wrap; margin: 0.4rem 0 1.6rem; }
+.facet-row label { display: grid; gap: 0.25rem; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+.facet-row select {
+  border: 1px solid var(--line); border-radius: 100px; background: var(--white);
+  padding: 0.42rem 0.9rem; font-family: var(--sans); font-size: 0.85rem; outline: none; cursor: pointer;
+}
+.facet-row select:focus { border-color: var(--gold); }
+.facet-row #fClear { border-radius: 100px; align-self: end; }
