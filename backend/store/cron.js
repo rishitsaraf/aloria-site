@@ -1,7 +1,7 @@
 /* /api/store/cron/sweep — scheduled housekeeping (vercel.json cron, hourly).
    1. Marks stale active carts (with items + a known email) as abandoned and
       sends the first recovery email; optionally a second reminder later.
-   2. Cancels stripe orders that never completed payment and restocks them.
+   2. Cancels online-gateway orders that never completed payment and restocks them.
    3. Activates draft products whose publish_at has arrived.
    4. Prunes expired sessions, reset tokens and old rate-limit rows.
    Timing comes from CMS Settings (env vars as fallback).
@@ -16,7 +16,7 @@ const cartLib = require("./cartLib");
 const checkout = require("./checkout");
 const { json, unauthorized } = require("../lib/http");
 
-const STRIPE_PENDING_EXPIRE_MIN = 120;
+const ONLINE_PENDING_EXPIRE_MIN = 120;
 
 function assertCronAuth(req) {
   const secret = process.env.CRON_SECRET;
@@ -84,10 +84,10 @@ async function sendSecondReminders() {
 async function expireStalePendingOrders() {
   const r = await db.query(
     `SELECT id FROM orders
-      WHERE status = 'pending' AND payment_method = 'stripe'
+      WHERE status = 'pending' AND payment_method = 'online'
         AND created_at < now() - make_interval(mins => $1)
       LIMIT 50`,
-    [STRIPE_PENDING_EXPIRE_MIN]
+    [ONLINE_PENDING_EXPIRE_MIN]
   );
   for (const row of r.rows) {
     await db.tx(async (client) => {

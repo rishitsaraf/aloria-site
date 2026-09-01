@@ -4,6 +4,7 @@
 
 const db = require("../lib/db");
 const settings = require("../lib/settings");
+const payments = require("../lib/payments");
 const { json, badRequest, notFound, cleanInt, cleanString, slugify } = require("../lib/http");
 
 /* ---------- settings ---------- */
@@ -12,7 +13,7 @@ async function getSettings(req, res) {
   json(res, 200, {
     settings: await settings.getAll(),
     integrations: {
-      stripe: Boolean(process.env.STRIPE_SECRET_KEY),
+      paymentProvider: payments.onlineEnabled() ? payments.active().name : null,
       resend: Boolean(process.env.RESEND_API_KEY),
       blob: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
       cronSecret: Boolean(process.env.CRON_SECRET),

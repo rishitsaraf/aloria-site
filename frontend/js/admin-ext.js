@@ -302,7 +302,9 @@ async function viewSettings() {
       </div>
       <div class="panel pad">
         <h2 class="serif" style="font-size:1.05rem;margin-bottom:0.9rem">Integrations</h2>
-        ${integ(integrations.stripe, "Stripe payments", "Set STRIPE_SECRET_KEY in Vercel — checkout runs in test mode until then")}
+        ${integrations.paymentProvider
+          ? integ(true, `Payments — ${esc(integrations.paymentProvider)}`, "")
+          : integ(false, "Payment gateway", "Pick a gateway, add its adapter under backend/lib/payments/, set PAYMENT_PROVIDER — checkout runs in test mode until then")}
         ${integ(integrations.resend, "Resend email", "Set RESEND_API_KEY — emails are logged, not delivered, until then")}
         ${integ(integrations.blob, "Vercel Blob uploads", "Add a Blob store to the project for image uploads")}
         ${integ(integrations.cronSecret, "Cron secret", "Set CRON_SECRET to lock the hourly sweep")}

@@ -1,12 +1,14 @@
 /* /api/store/checkout — order creation.
    Every amount is computed server-side from the database; the client only
    ever sends identifiers. Stock is reserved inside a transaction with row
-   locks so two buyers can't take the last piece. Payment is Stripe Checkout
-   when STRIPE_SECRET_KEY is configured, otherwise a "test" payment so the
-   whole flow works before payments are wired up. */
+   locks so two buyers can't take the last piece. Payment goes through the
+   gateway-agnostic adapter layer in backend/lib/payments — whichever
+   provider is configured via PAYMENT_PROVIDER, with the built-in "test"
+   provider keeping the whole flow working until one is chosen. */
 
 const db = require("../lib/db");
 const authLib = require("../lib/auth");
+const payments = require("../lib/payments");
 const settings = require("../lib/settings");
 const cartLib = require("./cartLib");
 const email = require("../lib/email");
@@ -91,7 +93,7 @@ async function quote(req, res) {
     taxPct,
     totalCents: afterDiscount + shipping + tax,
     freeShippingThresholdCents: rules.freeThreshold,
-    stripeEnabled: Boolean(process.env.STRIPE_SECRET_KEY),
+    payments: { provider: payments.active().name, online: payments.onlineEnabled() },
   });
 }
 
@@ -102,8 +104,9 @@ async function create(req, res) {
   const buyerEmail = cleanEmail(body.email || (user && user.email));
   const name = cleanString(body.name, { name: "Full name", max: 140, required: true });
   const address = cleanAddress(body.address);
-  const stripeEnabled = Boolean(process.env.STRIPE_SECRET_KEY);
-  const paymentMethod = stripeEnabled && body.paymentMethod !== "test" ? "stripe" : "test";
+  const provider = payments.active();
+  const onlineAvailable = payments.onlineEnabled();
+  const paymentMethod = onlineAvailable && body.paymentMethod !== "test" ? "online" : "test";
 
   const cart = await cartLib.findCartByCookie(req);
   if (!cart) throw badRequest("Your bag is empty");
@@ -147,11 +150,12 @@ async function create(req, res) {
     const number = `ALR-${num.rows[0].n}`;
     const publicToken = require("crypto").randomBytes(24).toString("hex");
     const or = await client.query(
-      `INSERT INTO orders (number, public_token, user_id, cart_id, email, status, payment_method,
+      `INSERT INTO orders (number, public_token, user_id, cart_id, email, status, payment_method, payment_provider,
                            subtotal_cents, shipping_cents, discount_cents, discount_code, tax_cents, total_cents,
                            currency, shipping_name, shipping_address, from_recovered_cart)
-       VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
       [number, publicToken, user ? user.id : null, cart.id, buyerEmail, paymentMethod,
+       paymentMethod === "online" ? provider.name : "",
        subtotal, shippingCents, discountCents, discount.code, taxCents, totalCents,
        payload.currency, name, JSON.stringify(address), cart.recovered]
     );
@@ -181,9 +185,18 @@ async function create(req, res) {
     return or.rows[0];
   });
 
-  if (paymentMethod === "stripe") {
-    const url = await createStripeSession(order, items);
-    json(res, 200, { ok: true, orderNumber: order.number, key: order.public_token, checkoutUrl: url });
+  if (paymentMethod === "online") {
+    // hand off to whichever gateway adapter is configured
+    const created = await provider.createPayment(order, {
+      successUrl: email.siteUrl(`/checkout/thanks?order=${order.number}&key=${order.public_token}`),
+      cancelUrl: email.siteUrl("/checkout?cancelled=1"),
+    });
+    if (created.ref) await db.query("UPDATE orders SET payment_ref = $1 WHERE id = $2", [created.ref, order.id]);
+    json(res, 200, {
+      ok: true, orderNumber: order.number, key: order.public_token,
+      checkoutUrl: created.redirectUrl || null,
+      clientPayload: created.clientPayload || null,
+    });
     return;
   }
 
@@ -211,64 +224,66 @@ async function markPaid(orderId, ref) {
   return order;
 }
 
-/* ---------- Stripe via REST (no SDK dependency) ---------- */
+/* ---------- gateway webhook (provider-agnostic, idempotent) ---------- */
 
-async function stripeCall(path, params) {
-  const body = new URLSearchParams(params);
-  const resp = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: body.toString(),
-  });
-  const data = await resp.json();
-  if (!resp.ok) {
-    console.error("[stripe]", data.error && data.error.message);
-    throw new Error("Payment provider error — try again");
+/** POST /api/store/payments/webhook — the configured adapter verifies the
+    signature and normalizes events; every event id is deduplicated in
+    payment_events so gateway redelivery is always safe to replay. */
+async function webhook(req, res) {
+  const provider = payments.active();
+  const parsed = await provider.parseWebhook(req);
+  if (!parsed.ok) {
+    json(res, 400, { ok: false, error: "signature verification failed" });
+    return;
   }
-  return data;
-}
-
-async function createStripeSession(order, items) {
-  const params = {
-    mode: "payment",
-    customer_email: order.email,
-    client_reference_id: order.number,
-    success_url: email.siteUrl(`/checkout/thanks?order=${order.number}&key=${order.public_token}`),
-    cancel_url: email.siteUrl("/checkout?cancelled=1"),
-    "metadata[order_number]": order.number,
-  };
-  if (order.discount_cents > 0) {
-    // Stripe line items can't be negative; collapse to one discounted line.
-    params["line_items[0][quantity]"] = "1";
-    params["line_items[0][price_data][currency]"] = order.currency.toLowerCase();
-    params["line_items[0][price_data][product_data][name]"] = `Aloria order ${order.number}`;
-    params["line_items[0][price_data][unit_amount]"] = String(order.total_cents);
-  } else {
-    items.forEach((item, i) => {
-      params[`line_items[${i}][quantity]`] = String(item.qty);
-      params[`line_items[${i}][price_data][currency]`] = order.currency.toLowerCase();
-      params[`line_items[${i}][price_data][product_data][name]`] =
-        item.variantLabel ? `${item.title} — ${item.variantLabel}` : item.title;
-      params[`line_items[${i}][price_data][unit_amount]`] = String(item.unitCents);
-    });
-    if (order.shipping_cents > 0) {
-      const i = items.length;
-      params[`line_items[${i}][quantity]`] = "1";
-      params[`line_items[${i}][price_data][currency]`] = order.currency.toLowerCase();
-      params[`line_items[${i}][price_data][product_data][name]`] = "Shipping";
-      params[`line_items[${i}][price_data][unit_amount]`] = String(order.shipping_cents);
+  let applied = 0;
+  for (const event of parsed.events || []) {
+    if (!event.id || !event.type) continue;
+    const fresh = await db.query(
+      `INSERT INTO payment_events (event_id, provider, type, payload)
+       VALUES ($1, $2, $3, $4) ON CONFLICT (event_id) DO NOTHING RETURNING event_id`,
+      [String(event.id).slice(0, 200), provider.name, event.type, JSON.stringify(event)]
+    );
+    if (!fresh.rows.length) continue; // already processed — idempotent skip
+    const or = await db.query("SELECT * FROM orders WHERE number = $1", [event.orderNumber || ""]);
+    const order = or.rows[0];
+    if (!order) continue;
+    await db.query("UPDATE payment_events SET order_id = $1 WHERE event_id = $2", [order.id, String(event.id).slice(0, 200)]);
+    if (event.type === "paid") {
+      await markPaid(order.id, event.ref || order.payment_ref);
+      applied++;
+    } else if (event.type === "failed" && order.status === "pending") {
+      await db.tx(async (client) => {
+        await client.query("UPDATE orders SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status = 'pending'", [order.id]);
+        await restockOrder(client, order.id);
+      });
+      applied++;
+    } else if (event.type === "refunded" && ["paid", "fulfilled"].includes(order.status)) {
+      await db.tx(async (client) => {
+        await client.query("UPDATE orders SET status = 'refunded', updated_at = now() WHERE id = $1", [order.id]);
+        await restockOrder(client, order.id);
+      });
+      applied++;
     }
   }
-  const session = await stripeCall("checkout/sessions", params);
-  await db.query("UPDATE orders SET payment_ref = $1 WHERE id = $2", [session.id, order.id]);
-  return session.url;
+  json(res, 200, { ok: true, received: (parsed.events || []).length, applied });
 }
 
-/** Thanks page calls this; the server asks Stripe directly, so the client
-    can't forge a paid state. Safe to call repeatedly. */
+/** Move money back through the configured gateway (best-effort; test mode
+    always succeeds). Called by the CMS when an order is refunded. */
+async function refundViaProvider(order, amountCents) {
+  const provider = payments.PROVIDERS[order.payment_provider] || payments.active();
+  if (!provider.capabilities().refunds) return { ok: false, reason: "provider has no refund API" };
+  try {
+    return await provider.refund(order, amountCents);
+  } catch (e) {
+    console.error("[payments] refund failed:", e.message);
+    return { ok: false, reason: e.message };
+  }
+}
+
+/** Thanks page calls this; the server asks the configured gateway directly,
+    so the client can't forge a paid state. Safe to call repeatedly. */
 async function confirm(req, res) {
   const body = req.body || {};
   const number = cleanString(body.order, { name: "order", max: 20, required: true });
@@ -277,12 +292,13 @@ async function confirm(req, res) {
   const order = r.rows[0];
   if (!order) throw notFound("Order not found");
 
-  if (order.status === "pending" && order.payment_method === "stripe" && order.payment_ref && process.env.STRIPE_SECRET_KEY) {
-    const resp = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(order.payment_ref)}`, {
-      headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}` },
-    });
-    const session = await resp.json();
-    if (resp.ok && session.payment_status === "paid") await markPaid(order.id, order.payment_ref);
+  if (order.status === "pending" && order.payment_method === "online") {
+    // ask the gateway directly — the client can never forge a paid state
+    const provider = payments.PROVIDERS[order.payment_provider] || payments.active();
+    try {
+      const check = await provider.verifyPayment(order);
+      if (check.paid) await markPaid(order.id, check.ref || order.payment_ref);
+    } catch (e) { console.error("[payments] verify failed:", e.message); }
   }
   return lookupByNumberKey(res, number, key);
 }
@@ -359,4 +375,4 @@ async function restockOrder(client, orderId) {
   );
 }
 
-module.exports = { quote, create, confirm, lookup, myOrders, markPaid, restockOrder, shapeOrder };
+module.exports = { quote, create, confirm, lookup, myOrders, markPaid, restockOrder, shapeOrder, webhook, refundViaProvider };

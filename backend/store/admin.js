@@ -400,12 +400,14 @@ async function updateOrder(req, res, params) {
   const trackingCarrier = cleanString(body.trackingCarrier, { name: "Carrier", max: 60 });
   const trackingNumber = cleanString(body.trackingNumber, { name: "Tracking number", max: 100 });
   let shippedNow = false;
+  let refundNow = false;
   const updated = await db.tx(async (client) => {
     const cur = await client.query("SELECT * FROM orders WHERE id = $1 FOR UPDATE", [id]);
     const order = cur.rows[0];
     if (!order) throw notFound("Order not found");
     const restockNow = ["cancelled", "refunded"].includes(status) && !["cancelled", "refunded"].includes(order.status);
     shippedNow = status === "fulfilled" && order.status !== "fulfilled";
+    refundNow = status === "refunded" && order.status !== "refunded" && order.payment_method === "online";
     const r = await client.query(
       `UPDATE orders SET status = $1,
               tracking_carrier = COALESCE(NULLIF($3, ''), tracking_carrier),
@@ -423,6 +425,13 @@ async function updateOrder(req, res, params) {
     if (restockNow) await checkout.restockOrder(client, id);
     return r.rows[0];
   });
+  if (refundNow) {
+    // move the money back through whichever gateway took it (test mode: no-op success)
+    const result = await checkout.refundViaProvider(updated, updated.total_cents);
+    await db.query("INSERT INTO order_events (order_id, kind, data, user_id) VALUES ($1, 'note', $2, $3)",
+      [id, JSON.stringify({ note: result.ok ? `Gateway refund issued (${result.ref || "ok"})` : `Gateway refund FAILED: ${result.reason || "unknown"} — refund manually` }),
+       req.adminUser ? req.adminUser.id : null]);
+  }
   if (shippedNow) {
     const items = (await db.query("SELECT * FROM order_items WHERE order_id = $1", [id])).rows;
     try {

@@ -1,5 +1,5 @@
-/* Order confirmation. For Stripe returns the page first confirms payment
-   with the server (which verifies against Stripe directly), then renders. */
+/* Order confirmation. For online-gateway returns the page first confirms
+   payment with the server (which verifies with the gateway directly). */
 
 const $ = (id) => document.getElementById(id);
 

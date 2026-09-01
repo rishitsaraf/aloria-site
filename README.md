@@ -26,7 +26,7 @@ Postgres. No framework, no build step.
 - **Abandoned bags** — auto recovery email (+ optional second reminder), manual re-sends, recovered-revenue attribution.
 - **Discounts** — percent / fixed / free-shipping codes with start & expiry dates, total usage limits, once-per-customer, and live usage counts.
 - **Content & Pages** — announcement bar, landing hero and category tiles edited in the CMS; markdown-lite static pages published to the storefront footer.
-- **Settings** — shipping rates, free-shipping threshold, abandoned-cart timing, tax (default % + per-country) stored in the DB; integration status panel (Stripe / Resend / Blob / cron).
+- **Settings** — shipping rates, free-shipping threshold, abandoned-cart timing, tax (default % + per-country) stored in the DB; integration status panel (payment gateway / Resend / Blob / cron).
 - **Staff & security** — viewer/editor/admin roles, staff invites, an audit log of every CMS write, TOTP two-factor auth, and sign-out-everywhere.
 - **Emails** — preview every transactional template with sample data and send yourself a test; waitlist CSV export + broadcast.
 
@@ -59,8 +59,8 @@ vercel.json          cleanUrls, hourly cron sweep, security headers
 |---|---|---|
 | `DATABASE_URL` | **yes** | Postgres connection string (Neon / Vercel Postgres / Supabase). Use a **pooled** connection string. Schema auto-creates on first request. |
 | `ADMIN_EMAIL` + `ADMIN_PASSWORD` | **yes** | Bootstrap the CMS admin account (created/promoted on first login). There is no signup path to admin. |
-| `SITE_URL` | recommended | Canonical base URL used in emails and Stripe redirects, e.g. `https://aloria.example` |
-| `STRIPE_SECRET_KEY` | optional | Enables real card payments via Stripe Checkout (REST, no SDK). Without it, checkout runs in "test order" mode so the whole flow still works. |
+| `SITE_URL` | recommended | Canonical base URL used in emails and payment-gateway redirects, e.g. `https://aloria.example` |
+| `PAYMENT_PROVIDER` | later | Names the payment-gateway adapter to use (see `backend/lib/payments/`). Until set, checkout runs in "test order" mode so the whole flow still works. Gateway-specific keys ride alongside it. |
 | `RESEND_API_KEY` + `EMAIL_FROM` | optional | Transactional email (order confirmations, abandoned-bag recovery). Without it, emails are logged to Vercel logs instead of sent. |
 | `BLOB_READ_WRITE_TOKEN` | optional | Set automatically when you add a Vercel Blob store — enables image uploads from the CMS. |
 | `CRON_SECRET` | recommended | Protects `/api/store/cron/sweep`; Vercel sends it automatically as a Bearer token. |
@@ -74,7 +74,9 @@ vercel.json          cleanUrls, hourly cron sweep, security headers
 2. Deploy (`vercel --prod`). The schema provisions itself.
 3. Open `/admin`, sign in with the admin credentials → Dashboard → **Seed launch catalog**
    (11 products / 264 variants generated from the brand system, plus a `WELCOME10` code).
-4. Optionally add `STRIPE_SECRET_KEY` and `RESEND_API_KEY` when ready for real payments/emails.
+4. Optionally add `RESEND_API_KEY` for delivered emails. When you pick a payment gateway,
+   add its adapter under `backend/lib/payments/` (contract documented there) and set
+   `PAYMENT_PROVIDER` — until then checkout runs in clearly-marked test mode.
 
 ## Commerce model
 
@@ -85,8 +87,11 @@ vercel.json          cleanUrls, hourly cron sweep, security headers
 - **Carts** live server-side against an HttpOnly cookie token; signing in attaches the cart
   to the account. Prices are never trusted from the client.
 - **Checkout** computes totals server-side, applies discount codes, reserves stock inside a
-  transaction with row locks (no overselling), then either completes a test payment or
-  redirects to Stripe Checkout. The thanks page confirms Stripe payment server-to-server.
+  transaction with row locks (no overselling), then completes a test payment or hands off to
+  the configured payment gateway. Payments are **gateway-agnostic**: any provider (Razorpay,
+  PayU, Adyen, PayPal, …) plugs in by adding one adapter file under `backend/lib/payments/`
+  and setting `PAYMENT_PROVIDER` — checkout, webhooks (idempotent, signature-verified by the
+  adapter), refunds and the thanks-page confirmation all go through the same interface.
 - **Abandoned bags**: any bag with a known email (account, checkout email field, or the
   "save your bag" box) that goes quiet is marked abandoned by the hourly cron, gets one
   automatic recovery email with a tokenized restore link, and appears in the CMS for manual

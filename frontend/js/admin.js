@@ -11,7 +11,7 @@ const dt = (s) => new Date(s).toLocaleString(undefined, { month: "short", day: "
 
 const STAFF_ROLES = { viewer: 1, editor: 2, admin: 3 };
 let ME = null;
-let INTEGRATIONS = { stripe: false, resend: false, blob: false, cronSecret: false };
+let INTEGRATIONS = { paymentProvider: null, resend: false, blob: false, cronSecret: false };
 
 /** Busy-state wrapper: spinner on the button, double-click proof. */
 async function withBusy(btn, fn) {

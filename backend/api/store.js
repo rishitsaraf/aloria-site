@@ -69,6 +69,7 @@ const ROUTES = [
   ["POST", "checkout/quote", checkout.quote],
   ["POST", "checkout", checkout.create],
   ["POST", "checkout/confirm", checkout.confirm],
+  ["POST", "payments/webhook", checkout.webhook],
   ["GET", "orders/lookup", checkout.lookup],
   ["GET", "orders", checkout.myOrders],
 

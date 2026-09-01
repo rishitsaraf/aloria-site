@@ -126,8 +126,8 @@ CREATE TABLE IF NOT EXISTS orders (
   cart_id          BIGINT REFERENCES carts(id) ON DELETE SET NULL,
   email            TEXT NOT NULL,
   status           TEXT NOT NULL DEFAULT 'pending', -- pending | paid | fulfilled | cancelled | refunded
-  payment_method   TEXT NOT NULL DEFAULT 'test',    -- test | stripe
-  payment_ref      TEXT,                            -- stripe checkout session id
+  payment_method   TEXT NOT NULL DEFAULT 'test',    -- test | online | manual
+  payment_ref      TEXT,                            -- gateway payment/session reference
   subtotal_cents   INTEGER NOT NULL DEFAULT 0,
   shipping_cents   INTEGER NOT NULL DEFAULT 0,
   discount_cents   INTEGER NOT NULL DEFAULT 0,
@@ -247,7 +247,17 @@ CREATE TABLE IF NOT EXISTS admin_audit (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_time ON admin_audit(created_at);
 
+CREATE TABLE IF NOT EXISTS payment_events (
+  event_id   TEXT PRIMARY KEY,           -- gateway's own event id (dedup)
+  provider   TEXT NOT NULL,
+  type       TEXT NOT NULL,              -- paid | failed | refunded
+  order_id   BIGINT REFERENCES orders(id) ON DELETE SET NULL,
+  payload    JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- column additions for existing deployments (idempotent)
+ALTER TABLE orders    ADD COLUMN IF NOT EXISTS payment_provider TEXT NOT NULL DEFAULT '';
 ALTER TABLE products  ADD COLUMN IF NOT EXISTS seo_title TEXT NOT NULL DEFAULT '';
 ALTER TABLE products  ADD COLUMN IF NOT EXISTS seo_description TEXT NOT NULL DEFAULT '';
 ALTER TABLE products  ADD COLUMN IF NOT EXISTS publish_at TIMESTAMPTZ;

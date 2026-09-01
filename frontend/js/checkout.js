@@ -1,5 +1,6 @@
 /* Checkout — totals always come from POST /checkout/quote (server-priced);
-   placing the order either completes a test payment or redirects to Stripe. */
+   placing the order completes a test payment or hands off to the configured
+   payment gateway (see backend/lib/payments). */
 
 const COUNTRIES = [
   ["US", "United States"], ["GB", "United Kingdom"], ["SG", "Singapore"], ["IN", "India"],
@@ -39,7 +40,7 @@ async function refreshQuote() {
     return;
   }
   $("checkoutForm").hidden = false;
-  syncPayChoices(q.stripeEnabled);
+  syncPayChoices(q.payments && q.payments.online);
   $("miniLines").innerHTML = q.cart.items.filter((i) => i.purchasable).map((i) => `
     <div class="mini-line">
       ${i.image ? `<img src="${Store.esc(i.image)}" alt="">` : ""}
@@ -61,12 +62,13 @@ async function refreshQuote() {
   if (q.cart.email && !$("coEmail").value) $("coEmail").value = q.cart.email;
 }
 
-/* Only show payment options the server can actually honour. */
-function syncPayChoices(stripeEnabled) {
-  const stripeLabel = document.querySelector('input[name="pay"][value="stripe"]').closest("label");
+/* Only show payment options the server can actually honour — the online
+   option appears once a gateway adapter is configured (PAYMENT_PROVIDER). */
+function syncPayChoices(onlineEnabled) {
+  const onlineLabel = document.querySelector('input[name="pay"][value="online"]').closest("label");
   const testInput = document.querySelector('input[name="pay"][value="test"]');
-  stripeLabel.hidden = !stripeEnabled;
-  if (!stripeEnabled) testInput.checked = true;
+  onlineLabel.hidden = !onlineEnabled;
+  if (!onlineEnabled) testInput.checked = true;
 }
 
 async function captureEmailEarly() {
@@ -96,7 +98,7 @@ async function placeOrder(ev) {
     };
     const r = await Store.api("checkout", { method: "POST", body });
     if (r.checkoutUrl) {
-      location.href = r.checkoutUrl; // Stripe hosted checkout
+      location.href = r.checkoutUrl; // gateway-hosted payment page
     } else {
       location.href = `/checkout/thanks?order=${encodeURIComponent(r.orderNumber)}&key=${encodeURIComponent(r.key)}`;
     }
