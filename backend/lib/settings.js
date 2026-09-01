@@ -9,8 +9,12 @@ const envInt = (name, dflt) => parseInt(process.env[name], 10) || dflt;
 const DEFAULTS = {
   "shipping.flat_cents": () => envInt("SHIPPING_FLAT_CENTS", 800),
   "shipping.free_threshold_cents": () => envInt("FREE_SHIPPING_CENTS", 7500),
-  "abandoned.minutes": () => envInt("ABANDONED_AFTER_MINUTES", 120),
-  "abandoned.second_reminder_hours": () => 0, // 0 = off
+  // benchmark timing: first touch 30-60 min converts 3-5x better than later;
+  // a 3-email ladder recovers ~69% more orders than a single send
+  "abandoned.minutes": () => envInt("ABANDONED_AFTER_MINUTES", 45),
+  "abandoned.second_reminder_hours": () => 24,  // 0 = off
+  "abandoned.third_reminder_hours": () => 72,   // measured from the 2nd send; 0 = off
+  "abandoned.incentive_code": () => "",         // discount code offered from email 2 on
   "tax.default_pct": () => 0,
   "tax.by_country": () => ({}),               // {"GB": 20, "DE": 19}
   "content.announcement": () => ({ text: "", enabled: false }),

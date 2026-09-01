@@ -84,12 +84,17 @@ async function sendOrderConfirmation(order, items) {
   return send({ to: order.email, ...buildOrderConfirmation(order, items) });
 }
 
-function buildCartRecovery(cart, items, totalCents) {
+function buildCartRecovery(cart, items, totalCents, opts = {}) {
   const link = siteUrl(`/cart?recover=${encodeURIComponent(cart.recovery_token)}`);
+  const incentive = opts.incentiveCode
+    ? `<p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;text-align:center;border:1px dashed #b08d3e;border-radius:4px;padding:10px 14px;margin:14px 0;">
+         A little something for coming back — use code <b style="letter-spacing:0.1em;">${escapeHtml(opts.incentiveCode)}</b> at checkout.
+       </p>` : "";
   const html = layout("You left something sparkling behind", `
     <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
       Your Aloria stack is still waiting in your bag — we saved it for you.
     </p>
+    ${incentive}
     <table style="width:100%;border-collapse:collapse;margin:18px 0;">${itemRows(items, cart.currency)}
       <tr><td colspan="2" style="padding:10px 0;text-align:right;font-family:Helvetica,Arial,sans-serif;font-size:14px;"><b>Bag total</b></td>
           <td style="padding:10px 0;text-align:right;font-family:Helvetica,Arial,sans-serif;font-size:14px;"><b>${money(totalCents, cart.currency)}</b></td></tr>
@@ -101,8 +106,8 @@ function buildCartRecovery(cart, items, totalCents) {
   return { subject: "Your Aloria bag is waiting", html, text };
 }
 
-async function sendCartRecovery(cart, items, totalCents) {
-  return send({ to: cart.email, ...buildCartRecovery(cart, items, totalCents) });
+async function sendCartRecovery(cart, items, totalCents, opts = {}) {
+  return send({ to: cart.email, ...buildCartRecovery(cart, items, totalCents, opts) });
 }
 
 function buildPasswordReset(token) {

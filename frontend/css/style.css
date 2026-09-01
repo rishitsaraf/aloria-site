@@ -10,6 +10,7 @@
   --line: #e9e4dc;
   --gold: #b08d3e;
   --gold-bright: #d4af5c;
+  --gold-ink: #8a6d2f; /* gold dark enough for AA text contrast on white */
   --crystal: #b9b4cf;
   --crystal-soft: #eceaf4;
   --emerald: #0f7a4d;
@@ -33,12 +34,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 img { max-width: 100%; height: auto; display: block; }
-a { color: var(--gold); text-decoration: none; }
+a { color: var(--gold-ink); text-decoration: none; }
+/* skip link: first focusable element on storefront pages */
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 200;
+  background: var(--ink); color: #fff; font-family: var(--mono); font-size: 0.7rem;
+  letter-spacing: 0.14em; text-transform: uppercase; padding: 0.7rem 1.2rem;
+}
+.skip-link:focus { left: 0; }
 
 /* ---------- type scale ---------- */
 h1, h2, h3, .serif { font-family: var(--serif); font-weight: 500; line-height: 1.08; }
 .mono { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.eyebrow { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: 1rem; }
+.eyebrow { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-ink); margin-bottom: 1rem; }
 
 /* ---------- stone dots ---------- */
 .stone-dots { display: inline-flex; gap: 7px; align-items: center; }

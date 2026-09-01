@@ -25,13 +25,13 @@ function assertCronAuth(req) {
   if (header !== `Bearer ${secret}`) throw unauthorized("Bad cron secret");
 }
 
-async function sendRecoveryFor(cart, token) {
+async function sendRecoveryFor(cart, token, opts = {}) {
   const payload = await cartLib.cartPayload(cart);
   const items = payload.items
     .filter((i) => i.purchasable)
     .map((i) => ({ product_title: i.title, variant_label: i.variantLabel, qty: i.qty, unit_price_cents: i.unitCents }));
   if (!items.length) return false;
-  const result = await emailLib.sendCartRecovery({ ...cart, recovery_token: token }, items, payload.subtotalCents);
+  const result = await emailLib.sendCartRecovery({ ...cart, recovery_token: token }, items, payload.subtotalCents, opts);
   return result.ok;
 }
 
@@ -57,28 +57,37 @@ async function sweepAbandonedCarts() {
   return { marked: r.rows.length, recoveryEmailsSent: sent };
 }
 
-/** Optional second nudge, hours after the first (0 in Settings = off). */
-async function sendSecondReminders() {
-  const hours = await settings.get("abandoned.second_reminder_hours");
-  if (!hours || hours <= 0) return { secondRemindersSent: 0 };
-  const r = await db.query(
-    `SELECT * FROM carts
-      WHERE status = 'abandoned' AND NOT recovered AND recovery_sent_count = 1
-        AND recovery_sent_at < now() - make_interval(hours => $1)
-      LIMIT 50`,
-    [hours]
-  );
+/** The benchmark 3-touch ladder: reminder 2 (default 24h later, with the
+    optional incentive code) and reminder 3 (default 72h after that).
+    Either stage set to 0 in Settings switches it off. */
+async function sendReminderLadder() {
+  const incentiveCode = String((await settings.get("abandoned.incentive_code")) || "").trim();
+  const stages = [
+    { fromCount: 1, hoursKey: "abandoned.second_reminder_hours", opts: { incentiveCode } },
+    { fromCount: 2, hoursKey: "abandoned.third_reminder_hours", opts: { incentiveCode } },
+  ];
   let sent = 0;
-  for (const cart of r.rows) {
-    if (await sendRecoveryFor(cart, cart.recovery_token)) {
-      await db.query("UPDATE carts SET recovery_sent_count = 2, recovery_sent_at = now() WHERE id = $1", [cart.id]);
-      sent++;
-    } else {
-      // nothing purchasable left — stop reminding
-      await db.query("UPDATE carts SET recovery_sent_count = 2 WHERE id = $1", [cart.id]);
+  for (const stage of stages) {
+    const hours = await settings.get(stage.hoursKey);
+    if (!hours || hours <= 0) continue;
+    const r = await db.query(
+      `SELECT * FROM carts
+        WHERE status = 'abandoned' AND NOT recovered AND recovery_sent_count = $2
+          AND recovery_sent_at < now() - make_interval(hours => $1)
+        LIMIT 50`,
+      [hours, stage.fromCount]
+    );
+    for (const cart of r.rows) {
+      const delivered = await sendRecoveryFor(cart, cart.recovery_token, stage.opts);
+      // advance the counter either way — an empty bag shouldn't retry forever
+      await db.query(
+        "UPDATE carts SET recovery_sent_count = $2, recovery_sent_at = now() WHERE id = $1",
+        [cart.id, stage.fromCount + 1]
+      );
+      if (delivered) sent++;
     }
   }
-  return { secondRemindersSent: sent };
+  return { remindersSent: sent };
 }
 
 async function expireStalePendingOrders() {
@@ -114,7 +123,7 @@ async function publishScheduled() {
 async function sweep(req, res) {
   assertCronAuth(req);
   const carts = await sweepAbandonedCarts();
-  const reminders = await sendSecondReminders();
+  const reminders = await sendReminderLadder();
   const orders = await expireStalePendingOrders();
   const published = await publishScheduled();
   await authLib.pruneSessions();

@@ -24,7 +24,8 @@ async function getSettings(req, res) {
 async function putSettings(req, res) {
   const body = (req.body || {}).settings || {};
   const patch = {};
-  const intKeys = ["shipping.flat_cents", "shipping.free_threshold_cents", "abandoned.minutes", "abandoned.second_reminder_hours"];
+  const intKeys = ["shipping.flat_cents", "shipping.free_threshold_cents", "abandoned.minutes",
+    "abandoned.second_reminder_hours", "abandoned.third_reminder_hours"];
   for (const key of intKeys) {
     if (body[key] !== undefined) patch[key] = cleanInt(body[key], { name: key, min: 0, max: 10_000_000 });
   }
@@ -44,6 +45,9 @@ async function putSettings(req, res) {
       clean[cc] = n;
     }
     patch["tax.by_country"] = clean;
+  }
+  if (body["abandoned.incentive_code"] !== undefined) {
+    patch["abandoned.incentive_code"] = cleanString(body["abandoned.incentive_code"], { name: "Incentive code", max: 40 }).toUpperCase();
   }
   if (!Object.keys(patch).length) throw badRequest("Nothing to update");
   await settings.put(patch);

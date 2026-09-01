@@ -118,7 +118,7 @@
 .summary h2 { font-size: 1.3rem; margin-bottom: 1.1rem; }
 .sum-row { display: flex; justify-content: space-between; font-size: 0.88rem; padding: 0.35rem 0; color: var(--ink-soft); }
 .sum-row.total { border-top: 1px solid var(--line); margin-top: 0.7rem; padding-top: 0.9rem; color: var(--ink); font-family: var(--mono); font-size: 0.95rem; }
-.ship-note { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; color: var(--gold); margin: 0.5rem 0 1rem; }
+.ship-note { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; color: var(--gold-ink); margin: 0.5rem 0 1rem; }
 .empty-state { text-align: center; padding: 4rem 1rem; color: var(--ink-soft); }
 .empty-state .big { font-family: var(--serif); font-size: 1.6rem; color: var(--ink); margin-bottom: 0.6rem; }
 

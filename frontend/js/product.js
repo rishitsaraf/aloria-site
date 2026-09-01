@@ -31,18 +31,21 @@ function optionButton(o, val) {
   const active = selection[o.name] === val ? "active" : "";
   const avail = valueAvailable(o.name, val) ? "" : "unavailable";
   const swatch = /color/i.test(o.name) && SWATCHES[val.toLowerCase()];
+  const pressed = selection[o.name] === val ? "true" : "false";
+  const availNote = avail ? "" : " (unavailable in this combination)";
   if (swatch) {
-    return `<button type="button" class="opt-btn swatch ${swatch} ${active} ${avail}"
+    return `<button type="button" class="opt-btn swatch ${swatch} ${active} ${avail}" aria-pressed="${pressed}"
       data-opt="${Store.esc(o.name)}" data-val="${Store.esc(val)}"
-      title="${Store.esc(val)}" aria-label="${Store.esc(val)}">${Store.esc(val)}</button>`;
+      title="${Store.esc(val)}" aria-label="${Store.esc(val)}${availNote}">${Store.esc(val)}</button>`;
   }
-  return `<button type="button" class="opt-btn ${active} ${avail}"
-    data-opt="${Store.esc(o.name)}" data-val="${Store.esc(val)}">${Store.esc(val)}</button>`;
+  return `<button type="button" class="opt-btn ${active} ${avail}" aria-pressed="${pressed}"
+    data-opt="${Store.esc(o.name)}" data-val="${Store.esc(val)}"
+    aria-label="${Store.esc(val)}${availNote}">${Store.esc(val)}</button>`;
 }
 
 function renderOptions() {
   $("optGroups").innerHTML = product.options.map((o) => `
-    <div class="opt-group" data-opt="${Store.esc(o.name)}">
+    <div class="opt-group" data-opt="${Store.esc(o.name)}" role="group" aria-label="${Store.esc(o.name)}">
       <div class="opt-name">${Store.esc(o.name)} — <b>${Store.esc(selection[o.name] || "choose")}</b></div>
       <div class="opt-values">${o.values.map((val) => optionButton(o, val)).join("")}</div>
     </div>`).join("");
@@ -98,6 +101,7 @@ function syncState() {
 
 function setMainImage(src) {
   $("mainImg").src = src;
+  $("mainImg").alt = product ? product.title : "";
   document.querySelectorAll(".pdp-thumbs button").forEach((t) => t.classList.toggle("active", t.dataset.src === src));
 }
 
@@ -105,8 +109,8 @@ function renderGallery() {
   const imgs = product.images.length ? product.images : [];
   if (imgs.length) setMainImage(imgs[0]);
   $("thumbs").innerHTML = imgs.map((src, i) => `
-    <button type="button" data-src="${Store.esc(src)}" class="${i === 0 ? "active" : ""}" aria-label="View image ${i + 1}">
-      <img src="${Store.esc(src)}" alt="" loading="lazy">
+    <button type="button" data-src="${Store.esc(src)}" class="${i === 0 ? "active" : ""}" aria-label="View image ${i + 1} of ${imgs.length}">
+      <img src="${Store.esc(src)}" alt="${Store.esc(product.title)} — view ${i + 1}" loading="lazy">
     </button>`).join("");
   document.querySelectorAll(".pdp-thumbs button").forEach((t) => { t.onclick = () => setMainImage(t.dataset.src); });
 }

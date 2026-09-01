@@ -286,10 +286,14 @@ async function viewSettings() {
           </div>
         </div>
         <div class="panel pad">
-          <h2 class="serif" style="font-size:1.05rem;margin-bottom:0.9rem">Abandoned bags</h2>
+          <h2 class="serif" style="font-size:1.05rem;margin-bottom:0.9rem">Abandoned bags — 3-touch ladder</h2>
           <div class="form-row">
-            <div class="field"><label>Abandon after (minutes)</label><input id="sAbMin" inputmode="numeric" value="${s["abandoned.minutes"]}"></div>
-            <div class="field"><label>2nd reminder after (hours, 0 = off)</label><input id="sAb2" inputmode="numeric" value="${s["abandoned.second_reminder_hours"]}"></div>
+            <div class="field"><label>Abandon after (minutes — 30-60 converts best)</label><input id="sAbMin" inputmode="numeric" value="${s["abandoned.minutes"]}"></div>
+            <div class="field"><label>2nd email after (hours, 0 = off)</label><input id="sAb2" inputmode="numeric" value="${s["abandoned.second_reminder_hours"]}"></div>
+          </div>
+          <div class="form-row">
+            <div class="field"><label>3rd email after 2nd (hours, 0 = off)</label><input id="sAb3" inputmode="numeric" value="${s["abandoned.third_reminder_hours"]}"></div>
+            <div class="field"><label>Incentive code from email 2 (optional)</label><input id="sAbCode" value="${esc(s["abandoned.incentive_code"] || "")}" placeholder="e.g. COMEBACK10"></div>
           </div>
         </div>
         <div class="panel pad">
@@ -321,6 +325,8 @@ async function viewSettings() {
         "shipping.free_threshold_cents": parseInt(document.getElementById("sFree").value, 10),
         "abandoned.minutes": parseInt(document.getElementById("sAbMin").value, 10),
         "abandoned.second_reminder_hours": parseInt(document.getElementById("sAb2").value, 10),
+        "abandoned.third_reminder_hours": parseInt(document.getElementById("sAb3").value, 10),
+        "abandoned.incentive_code": document.getElementById("sAbCode").value,
         "tax.default_pct": parseFloat(document.getElementById("sTaxDef").value) || 0,
         "tax.by_country": byCountry,
       } } });

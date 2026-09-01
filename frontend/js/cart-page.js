@@ -44,7 +44,6 @@ function render(cart) {
 
   document.getElementById("cartLines").innerHTML = cart.items.map((i) => lineHtml(i, cart.currency)).join("");
   document.getElementById("sumSubtotal").textContent = Store.money(cart.subtotalCents, cart.currency);
-  document.getElementById("sumTotal").textContent = Store.money(cart.subtotalCents, cart.currency);
 
   const remaining = FREE_SHIP_CENTS - cart.subtotalCents;
   document.getElementById("shipNote").textContent = remaining > 0
@@ -70,11 +69,29 @@ function render(cart) {
   });
 }
 
+/* Full-cost transparency: shipping + tax estimated in the bag itself
+   (surprise costs at checkout are the top abandonment cause). */
+async function refreshEstimate() {
+  const country = document.getElementById("estCountry").value;
+  try { localStorage.setItem("aloria_country", country); } catch (_) {}
+  try {
+    const q = await Store.api("checkout/quote", { method: "POST", body: { country } });
+    FREE_SHIP_CENTS = q.freeShippingThresholdCents || FREE_SHIP_CENTS;
+    document.getElementById("sumShipping").textContent = q.shippingCents ? Store.money(q.shippingCents, q.cart.currency) : "Free";
+    document.getElementById("estTaxRow").hidden = !q.taxCents;
+    document.getElementById("estTaxLabel").textContent = q.taxPct ? `Tax (${q.taxPct}%)` : "Tax";
+    document.getElementById("sumTax").textContent = Store.money(q.taxCents, q.cart.currency);
+    document.getElementById("sumTotal").textContent = Store.money(q.totalCents, q.cart.currency);
+    return q;
+  } catch (_) { return null; }
+}
+
 async function mutate(path, method, body) {
   try {
     const data = await Store.api(path, { method, body });
     render(data.cart);
     Store.refreshBadge();
+    refreshEstimate();
   } catch (e) {
     Store.toast(e.message);
   }
@@ -97,11 +114,15 @@ async function saveEmail() {
   Store.nav("");
   Store.footer();
   await handleRecovery();
+  const sel = document.getElementById("estCountry");
+  sel.innerHTML = Store.COUNTRIES.map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
+  try { const saved = localStorage.getItem("aloria_country"); if (saved) sel.value = saved; } catch (_) {}
+  sel.onchange = refreshEstimate;
   try {
-    // quote = cart + authoritative shipping rules in one round-trip
-    const q = await Store.api("checkout/quote", { method: "POST", body: {} });
-    FREE_SHIP_CENTS = q.freeShippingThresholdCents || FREE_SHIP_CENTS;
-    render(q.cart);
+    // quote = cart + authoritative totals (shipping + tax) in one round-trip
+    const q = await refreshEstimate();
+    if (q) render(q.cart);
+    else document.getElementById("cartEmpty").hidden = false;
   } catch (e) {
     document.getElementById("cartEmpty").hidden = false;
   }

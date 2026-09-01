@@ -26,7 +26,7 @@
       <div class="pdp-price"><span id="pPrice"></span><span class="compare" id="pCompare"></span></div>
       <p class="pdp-desc" id="pDesc"></p>
       <div id="optGroups"></div>
-      <div class="stock-note" id="stockNote"></div>
+      <div class="stock-note" id="stockNote" aria-live="polite"></div>
       <div class="qty-row">
         <div class="qty-box">
           <button type="button" id="qtyMinus" aria-label="Decrease quantity">−</button>
@@ -35,7 +35,7 @@
         </div>
         <button class="btn" id="addBtn" disabled>Select options</button>
       </div>
-      <div class="form-msg" id="pdpMsg"></div>
+      <div class="form-msg" id="pdpMsg" aria-live="polite"></div>
     </div>
   </div>
   <div class="empty-state" id="pdpEmpty" hidden>

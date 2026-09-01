@@ -2,6 +2,14 @@
    fresh, and wraps the commerce API. Loaded on every storefront page. */
 
 const Store = {
+  COUNTRIES: [
+    ["US", "United States"], ["GB", "United Kingdom"], ["SG", "Singapore"], ["IN", "India"],
+    ["AE", "United Arab Emirates"], ["AU", "Australia"], ["CA", "Canada"], ["DE", "Germany"],
+    ["FR", "France"], ["IT", "Italy"], ["ES", "Spain"], ["NL", "Netherlands"], ["JP", "Japan"],
+    ["KR", "South Korea"], ["HK", "Hong Kong"], ["CH", "Switzerland"], ["SE", "Sweden"],
+    ["NZ", "New Zealand"], ["SA", "Saudi Arabia"], ["QA", "Qatar"],
+  ],
+
   async api(path, { method = "GET", body } = {}) {
     const resp = await fetch(`/api/store/${path}`, {
       method,
@@ -97,15 +105,24 @@ const Store = {
     el.innerHTML = `
       <a class="brand" href="/shop">ALORIA</a>
       <div class="links">
-        ${links.map(([id, href, label]) => `<a href="${href}" ${id === active ? 'style="color:var(--gold)"' : ""}>${label}</a>`).join("")}
+        ${links.map(([id, href, label]) => `<a href="${href}" ${id === active ? 'style="color:var(--gold-ink)" aria-current="page"' : ""}>${label}</a>`).join("")}
         <a href="/account" id="navAccount">Account</a>
-        <a href="/cart" class="bag-link">Bag<span class="bag-badge" id="bagBadge"></span></a>
+        <a href="/cart" class="bag-link" aria-label="Shopping bag">Bag<span class="bag-badge" id="bagBadge" aria-live="polite" aria-label="items in bag"></span></a>
       </div>`;
     document.body.prepend(el);
+    const skip = document.createElement("a");
+    skip.className = "skip-link";
+    skip.href = "#main";
+    skip.textContent = "Skip to content";
+    document.body.prepend(skip);
+    const mainEl = document.querySelector("main");
+    if (mainEl && !mainEl.id) mainEl.id = "main";
     Store.content().then((c) => {
       if (c.announcement && c.announcement.enabled && c.announcement.text) {
         const bar = document.createElement("div");
         bar.className = "announce-bar";
+        bar.setAttribute("role", "region");
+        bar.setAttribute("aria-label", "Announcement");
         bar.textContent = c.announcement.text;
         document.body.prepend(bar);
         document.body.classList.add("has-announce");

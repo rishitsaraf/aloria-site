@@ -2,14 +2,6 @@
    placing the order completes a test payment or hands off to the configured
    payment gateway (see backend/lib/payments). */
 
-const COUNTRIES = [
-  ["US", "United States"], ["GB", "United Kingdom"], ["SG", "Singapore"], ["IN", "India"],
-  ["AE", "United Arab Emirates"], ["AU", "Australia"], ["CA", "Canada"], ["DE", "Germany"],
-  ["FR", "France"], ["IT", "Italy"], ["ES", "Spain"], ["NL", "Netherlands"], ["JP", "Japan"],
-  ["KR", "South Korea"], ["HK", "Hong Kong"], ["CH", "Switzerland"], ["SE", "Sweden"],
-  ["NZ", "New Zealand"], ["SA", "Saudi Arabia"], ["QA", "Qatar"],
-];
-
 let appliedCode = "";
 let quoting = null;
 
@@ -113,7 +105,8 @@ async function placeOrder(ev) {
 (async () => {
   Store.nav("");
   Store.footer();
-  $("coCountry").innerHTML = COUNTRIES.map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
+  $("coCountry").innerHTML = Store.COUNTRIES.map(([c, n]) => `<option value="${c}">${n}</option>`).join("");
+  try { const saved = localStorage.getItem("aloria_country"); if (saved) $("coCountry").value = saved; } catch (_) {}
 
   if (Store.qs("cancelled")) Store.toast("Payment cancelled — your bag is untouched");
 
