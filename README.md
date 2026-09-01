@@ -14,6 +14,7 @@ Postgres. No framework, no build step.
 | Account | `/account` | Customer sign-in / registration / password reset / 2FA-aware login / order history |
 | **CMS** | `/admin` | Atelier Console — see below |
 | Facets | `/shop?plating=&stone=&shape=&price=&sort=` | Variant-aware faceted filters (a piece matches only if one variant carries every selected axis value) + price bounds + featured/newest/price/rating sorting, all URL-driven |
+| Feeds | `/feeds/products.xml`, `/feeds/meta.csv` | Google Merchant Center RSS (one item per variant, item_group_id per product, color/size/material attributes) and a Meta-catalog CSV, both generated live |
 | SEO | `/sitemap.xml`, `/robots.txt`, `/shop/product` | Sitemap/robots generated from the live catalog; the product page is server-rendered with title/canonical/OG plus schema.org Product JSON-LD (AggregateRating, OfferShippingDetails, MerchantReturnPolicy) and a BreadcrumbList |
 | Brand hub | `/hub` | Private brand book (still gated by the shared password) |
 

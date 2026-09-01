@@ -27,6 +27,7 @@ const wishlist = require("../store/wishlist");
 const seed = require("../store/seed");
 const cron = require("../store/cron");
 const sitemap = require("../store/sitemap");
+const feeds = require("../store/feeds");
 
 /** Staff gate + audit trail. GETs need `viewer`; mutations default `editor`;
     sensitive routes pass "admin" explicitly. */
@@ -86,6 +87,8 @@ const ROUTES = [
   ["GET", "cron/sweep", cron.sweep],
   ["GET", "sitemap", sitemap.sitemap],
   ["GET", "robots", sitemap.robots],
+  ["GET", "feed/google", feeds.google],
+  ["GET", "feed/meta", feeds.metaCsv],
 
   // ---- CMS: dashboard & catalog
   ["GET", "admin/metrics", staff(admin.metrics)],

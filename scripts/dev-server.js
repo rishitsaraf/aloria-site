@@ -59,6 +59,8 @@ http.createServer((req, res) => {
     // vercel.json rewrites
     if (req.url === "/sitemap.xml") req.url = "/api/store/sitemap";
     if (req.url === "/robots.txt") req.url = "/api/store/robots";
+    if (req.url === "/feeds/products.xml") req.url = "/api/store/feed/google";
+    if (req.url === "/feeds/meta.csv") req.url = "/api/store/feed/meta";
     try {
       if (req.url.startsWith("/shop/product?") || req.url === "/shop/product") await pdpHandler(req, res);
       else if (req.url.startsWith("/api/store")) await storeHandler(req, res);

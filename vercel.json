@@ -6,6 +6,8 @@
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/store/sitemap" },
     { "source": "/robots.txt", "destination": "/api/store/robots" },
+    { "source": "/feeds/products.xml", "destination": "/api/store/feed/google" },
+    { "source": "/feeds/meta.csv", "destination": "/api/store/feed/meta" },
     { "source": "/shop/product", "destination": "/api/pdp" }
   ],
   "crons": [
