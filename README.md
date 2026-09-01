@@ -23,7 +23,8 @@ Postgres. No framework, no build step.
 - **Inventory** — every variant in one table with quick ±/set adjustments and a full movement log (sales, restocks, edits, imports — who, when, why).
 - **Orders** — status/date/SKU filters, CSV export, manual order entry by SKU, per-order timeline (status changes, notes, emails) with internal notes, carrier + tracking number captured on fulfilment (included in the shipping email), packing-slip print view, re-send confirmation.
 - **Customers** — detail pages with lifetime value, order history, tags, internal notes, and account disable.
-- **Abandoned bags** — auto recovery email (+ optional second reminder), manual re-sends, recovered-revenue attribution.
+- **Abandoned bags** — 3-touch recovery ladder (first email, 24h reminder with optional incentive code, 72h final nudge — all timings CMS-tunable), manual re-sends, recovered-revenue attribution.
+- **Reviews** — customer reviews with star ratings, automatic verified-buyer detection (checked against paid orders), a moderation queue (approve / reject / public reply / delete), and aggregate ratings surfaced on shop cards, the PDP and its schema.org markup.
 - **Discounts** — percent / fixed / free-shipping codes with start & expiry dates, total usage limits, once-per-customer, and live usage counts.
 - **Content & Pages** — announcement bar, landing hero and category tiles edited in the CMS; markdown-lite static pages published to the storefront footer.
 - **Settings** — shipping rates, free-shipping threshold, abandoned-cart timing, tax (default % + per-country) stored in the DB; integration status panel (payment gateway / Resend / Blob / cron).

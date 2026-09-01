@@ -605,8 +605,84 @@ async function viewManualOrder() {
   });
 }
 
+/* ================= Reviews (moderation queue) ================= */
+
+async function viewReviews() {
+  const state = viewReviews.state || (viewReviews.state = { status: "pending" });
+  const params = state.status === "all" ? "" : `?status=${state.status}`;
+  const { reviews, counts } = await Store.api(`admin/reviews${params}`);
+  const chip = (id, label) =>
+    `<button class="filter-btn ${state.status === id ? "active" : ""}" data-rvf="${id}" type="button" style="border-radius:100px">${label}</button>`;
+  const stars = (n) => "★".repeat(n) + "☆".repeat(5 - n);
+  $m().innerHTML = `
+    <div class="admin-head"><h1 class="serif">Reviews</h1>
+      <span class="mono" style="font-size:0.62rem;color:var(--ink-soft)">${counts.pending || 0} awaiting moderation</span></div>
+    <div class="panel">
+      <div class="panel-head"><div class="toolbar">
+        ${chip("pending", `Pending (${counts.pending || 0})`)}
+        ${chip("approved", `Approved (${counts.approved || 0})`)}
+        ${chip("rejected", `Rejected (${counts.rejected || 0})`)}
+        ${chip("all", "All")}
+      </div></div>
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>When</th><th>Product</th><th>Rating</th><th>Author</th><th>Review</th><th>Status</th><th></th></tr></thead>
+        <tbody>${reviews.map((r) => `
+          <tr>
+            <td class="mono-cell">${dt(r.createdAt)}</td>
+            <td><a href="/shop/product?slug=${encodeURIComponent(r.productSlug)}" target="_blank" rel="noopener">${esc(r.productTitle)}</a></td>
+            <td class="mono-cell" style="color:var(--gold)">${stars(r.rating)}</td>
+            <td>${esc(r.author)}${r.verified ? ' <span class="mono" style="font-size:0.58rem;color:var(--emerald)">✓ buyer</span>' : ""}
+              <div class="mono" style="font-size:0.58rem;color:var(--ink-soft)">${esc(r.email)}</div></td>
+            <td style="max-width:340px">${r.title ? `<b>${esc(r.title)}</b> — ` : ""}<span style="color:var(--ink-soft)">${esc(r.body)}</span>
+              <div style="margin-top:0.4rem;display:flex;gap:0.35rem">
+                <input data-rv-reply="${r.id}" placeholder="Public reply…" value="${esc(r.reply)}" style="flex:1;min-width:140px">
+                <button class="btn ghost small" data-rv-reply-save="${r.id}" type="button">Reply</button>
+              </div></td>
+            <td>${pill(r.status)}</td>
+            <td><div style="display:flex;gap:0.3rem;flex-wrap:wrap">
+              ${r.status !== "approved" ? `<button class="btn small" data-rv-set="approved" data-rv="${r.id}" type="button">Approve</button>` : ""}
+              ${r.status !== "rejected" ? `<button class="btn ghost small" data-rv-set="rejected" data-rv="${r.id}" type="button">Reject</button>` : ""}
+              <button class="btn ghost small" data-rv-del="${r.id}" type="button">Delete</button>
+            </div></td>
+          </tr>`).join("") || '<tr><td colspan="7" style="color:var(--ink-soft)">Nothing here</td></tr>'}
+        </tbody></table></div>
+    </div>`;
+  document.querySelectorAll("[data-rvf]").forEach((b) => {
+    b.onclick = () => { state.status = b.dataset.rvf; viewReviews(); };
+  });
+  document.querySelectorAll("[data-rv-set]").forEach((b) => {
+    b.onclick = () => withBusy(b, async () => {
+      try {
+        await Store.api(`admin/reviews/${b.dataset.rv}`, { method: "PATCH", body: { status: b.dataset.rvSet } });
+        Store.toast(`Review ${b.dataset.rvSet}`);
+        viewReviews();
+      } catch (e) { Store.toast(e.message); }
+    });
+  });
+  document.querySelectorAll("[data-rv-reply-save]").forEach((b) => {
+    b.onclick = () => withBusy(b, async () => {
+      const reply = document.querySelector(`[data-rv-reply="${b.dataset.rvReplySave}"]`).value;
+      try {
+        await Store.api(`admin/reviews/${b.dataset.rvReplySave}`, { method: "PATCH", body: { reply } });
+        Store.toast("Reply saved");
+      } catch (e) { Store.toast(e.message); }
+    });
+  });
+  document.querySelectorAll("[data-rv-del]").forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm("Delete this review permanently?")) return;
+      try {
+        await Store.api(`admin/reviews/${b.dataset.rvDel}`, { method: "DELETE" });
+        Store.toast("Review deleted");
+        viewReviews();
+      } catch (e) { Store.toast(e.message); }
+    };
+  });
+}
+
 /* routes merged into admin.js's table */
 window.EXT_ROUTES = [
+  [/^#\/reviews$/, viewReviews],
   [/^#\/inventory$/, viewInventory],
   [/^#\/inventory\/movements$/, viewMovements],
   [/^#\/collections$/, viewCollections],

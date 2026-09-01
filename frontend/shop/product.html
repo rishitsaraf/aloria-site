@@ -43,6 +43,44 @@
     <p><a href="/shop">Back to the collection</a></p>
   </div>
 
+  <section class="reviews" id="reviews" hidden aria-label="Customer reviews">
+    <div class="section-row">
+      <h2 class="serif">Reviews</h2>
+      <button type="button" class="btn ghost" id="revWriteBtn">Write a review</button>
+    </div>
+    <div class="rev-summary" id="revSummary" hidden>
+      <div class="rev-score">
+        <div class="big" id="revAvg"></div>
+        <div class="stars" id="revStars" aria-hidden="true"></div>
+        <div class="muted" id="revCount"></div>
+      </div>
+      <div class="rev-bars" id="revBars"></div>
+    </div>
+    <form id="revForm" hidden novalidate>
+      <div class="rev-form-grid">
+        <label>Rating
+          <select id="revRating" required aria-label="Rating">
+            <option value="5">★★★★★ — Love it</option>
+            <option value="4">★★★★ — Like it</option>
+            <option value="3">★★★ — It's okay</option>
+            <option value="2">★★ — Not great</option>
+            <option value="1">★ — Disappointed</option>
+          </select>
+        </label>
+        <label>Name<input id="revName" maxlength="80" required></label>
+        <label id="revEmailWrap">Email<input id="revEmail" type="email" maxlength="254"></label>
+        <label class="wide">Title<input id="revTitle" maxlength="120" placeholder="Sums it up"></label>
+        <label class="wide">Review<textarea id="revBody" rows="4" maxlength="2000" required></textarea></label>
+      </div>
+      <div class="rev-form-foot">
+        <button class="btn" type="submit" id="revSubmit">Submit review</button>
+        <span class="form-msg" id="revMsg" aria-live="polite"></span>
+      </div>
+    </form>
+    <div id="revList"></div>
+    <div class="muted" id="revEmpty" hidden>No reviews yet — be the first to write one.</div>
+  </section>
+
   <section class="related" id="related" hidden>
     <div class="section-row">
       <h2 class="serif">Complete the stack</h2>

@@ -165,6 +165,7 @@ async function init() {
   renderOptions();
   syncState();
 
+  loadReviews();
   $("addBtn").onclick = addToBag;
   $("qtyMinus").onclick = () => { $("qtyInput").value = Math.max(1, (parseInt($("qtyInput").value, 10) || 1) - 1); };
   $("qtyPlus").onclick = () => { $("qtyInput").value = Math.min(10, (parseInt($("qtyInput").value, 10) || 1) + 1); };
@@ -184,6 +185,14 @@ function injectSeo() {
     description: product.description,
     image: product.images.map((i) => new URL(i, location.origin).href),
     brand: { "@type": "Brand", name: "Aloria" },
+    ...(product.rating && product.rating.count > 0 ? {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: product.rating.avg.toFixed(1),
+        reviewCount: product.rating.count,
+        bestRating: 5,
+      },
+    } : {}),
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: product.currency,
@@ -198,6 +207,90 @@ function injectSeo() {
   s.type = "application/ld+json";
   s.textContent = JSON.stringify(ld);
   document.head.appendChild(s);
+}
+
+/* ---------------- Reviews ---------------- */
+
+function starsHtml(n) {
+  const full = Math.round(n);
+  return "★".repeat(full) + "☆".repeat(5 - full);
+}
+
+async function loadReviews() {
+  let data;
+  try {
+    data = await Store.api(`products/${encodeURIComponent(product.slug)}/reviews`);
+  } catch (_) { return; } // reviews are optional decoration
+  const { summary, reviews } = data;
+  $("reviews").hidden = false;
+
+  if (summary.count > 0) {
+    $("revSummary").hidden = false;
+    $("revAvg").textContent = summary.avg.toFixed(1);
+    $("revStars").textContent = starsHtml(summary.avg);
+    $("revCount").textContent = `${summary.count} review${summary.count === 1 ? "" : "s"}`;
+    $("revBars").innerHTML = [5, 4, 3, 2, 1].map((s) => {
+      const n = summary.histogram[s] || 0;
+      const pct = summary.count ? Math.round((n / summary.count) * 100) : 0;
+      return `<div class="rev-bar-row"><span class="lbl">${s}★</span>
+        <div class="bar" role="img" aria-label="${n} ${s}-star review${n === 1 ? "" : "s"}"><i style="width:${pct}%"></i></div>
+        <span class="n">${n}</span></div>`;
+    }).join("");
+  }
+
+  $("revEmpty").hidden = reviews.length > 0;
+  $("revList").innerHTML = reviews.map((r) => `
+    <article class="review-card">
+      <div class="rev-head">
+        <span class="stars" aria-label="${r.rating} out of 5 stars">${starsHtml(r.rating)}</span>
+        ${r.title ? `<b>${Store.esc(r.title)}</b>` : ""}
+      </div>
+      <p>${Store.esc(r.body)}</p>
+      <div class="rev-meta">${Store.esc(r.author)}${r.verified ? ' · <span class="verified">✓ Verified buyer</span>' : ""}
+        · ${new Date(r.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</div>
+      ${r.reply ? `<div class="rev-reply"><b>ALORIA</b> ${Store.esc(r.reply)}</div>` : ""}
+    </article>`).join("");
+
+  // form wiring (hide email field when logged in — we already know it)
+  Store.api("auth/me").then(({ user }) => {
+    if (user) {
+      $("revEmailWrap").hidden = true;
+      if (!$("revName").value) $("revName").value = (user.name || "").split(" ")[0];
+    }
+  }).catch(() => {});
+  $("revWriteBtn").onclick = () => {
+    const f = $("revForm");
+    f.hidden = !f.hidden;
+    if (!f.hidden) $("revName").focus();
+  };
+  $("revForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const msg = $("revMsg");
+    $("revSubmit").disabled = true;
+    try {
+      const r = await Store.api(`products/${encodeURIComponent(product.slug)}/reviews`, {
+        method: "POST",
+        body: {
+          rating: parseInt($("revRating").value, 10),
+          name: $("revName").value,
+          email: $("revEmail").value || undefined,
+          title: $("revTitle").value,
+          body: $("revBody").value,
+        },
+      });
+      msg.textContent = "";
+      $("revForm").reset();
+      $("revForm").hidden = true;
+      Store.toast(r.verified
+        ? "Thank you — your verified review is awaiting moderation"
+        : "Thank you — your review is awaiting moderation");
+    } catch (err) {
+      msg.className = "form-msg err";
+      msg.textContent = err.message;
+    } finally {
+      $("revSubmit").disabled = false;
+    }
+  };
 }
 
 /* "Complete the stack" — other pieces from the same modular system. */

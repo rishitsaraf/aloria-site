@@ -15,6 +15,8 @@ function cardHtml(p) {
       <div class="info">
         <h3 class="serif">${Store.esc(p.title)}</h3>
         <div class="sub">${Store.esc(p.subtitle)}</div>
+        ${p.ratingCount ? `<div class="card-rating" aria-label="Rated ${p.ratingAvg.toFixed(1)} out of 5 from ${p.ratingCount} reviews">
+          <span class="stars">${"★".repeat(Math.round(p.ratingAvg))}${"☆".repeat(5 - Math.round(p.ratingAvg))}</span> <span class="n">(${p.ratingCount})</span></div>` : ""}
         <div class="price">${p.priceFromCents === p.priceToCents
           ? Store.money(p.priceFromCents, p.currency)
           : `From ${Store.money(p.priceFromCents, p.currency)}`}</div>

@@ -3,6 +3,7 @@
    availability signal, exact counts stay in the CMS. */
 
 const db = require("../lib/db");
+const reviewsLib = require("./reviews");
 const { json, notFound, cleanString } = require("../lib/http");
 
 const PAGE_SIZE = 24;
@@ -20,6 +21,8 @@ function shapeCard(p) {
     hoverImage: (p.images || [])[1] || null,
     featured: p.featured,
     inStock: p.total_stock > 0,
+    ratingAvg: Number(p.rating_avg) || 0,
+    ratingCount: Number(p.rating_count) || 0,
   };
 }
 
@@ -45,10 +48,13 @@ async function list(req, res) {
             COALESCE(MIN(COALESCE(v.price_cents, p.price_cents)) FILTER (WHERE v.active), p.price_cents) AS price_from_cents,
             COALESCE(MAX(COALESCE(v.price_cents, p.price_cents)) FILTER (WHERE v.active), p.price_cents) AS price_to_cents,
             COALESCE(SUM(v.stock) FILTER (WHERE v.active), 0)::int AS total_stock,
+            rv.rating_avg, rv.rating_count,
             COUNT(*) OVER () AS total_rows
        FROM products p LEFT JOIN variants v ON v.product_id = p.id
+       LEFT JOIN (SELECT product_id, AVG(rating)::numeric(3,2) AS rating_avg, COUNT(*)::int AS rating_count
+                    FROM reviews WHERE status = 'approved' GROUP BY product_id) rv ON rv.product_id = p.id
       WHERE ${where}
-      GROUP BY p.id
+      GROUP BY p.id, rv.rating_avg, rv.rating_count
       ORDER BY p.featured DESC, p.category, p.id
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
@@ -84,6 +90,7 @@ async function detail(req, res, params) {
       tags: p.tags || [],
       seoTitle: p.seo_title || "",
       seoDescription: p.seo_description || "",
+      rating: await reviewsLib.summaryFor(p.id),
       variants: vr.rows.map((v) => ({
         id: v.id,
         sku: v.sku,

@@ -256,6 +256,22 @@ CREATE TABLE IF NOT EXISTS payment_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS reviews (
+  id          BIGSERIAL PRIMARY KEY,
+  product_id  BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  user_id     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  author_name TEXT NOT NULL,
+  email       TEXT NOT NULL DEFAULT '',
+  rating      INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  title       TEXT NOT NULL DEFAULT '',
+  body        TEXT NOT NULL,
+  verified    BOOLEAN NOT NULL DEFAULT false,  -- author bought this product
+  status      TEXT NOT NULL DEFAULT 'pending', -- pending | approved | rejected
+  reply       TEXT NOT NULL DEFAULT '',        -- public reply from the shop
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id, status, created_at);
+
 -- column additions for existing deployments (idempotent)
 ALTER TABLE orders    ADD COLUMN IF NOT EXISTS payment_provider TEXT NOT NULL DEFAULT '';
 ALTER TABLE products  ADD COLUMN IF NOT EXISTS seo_title TEXT NOT NULL DEFAULT '';

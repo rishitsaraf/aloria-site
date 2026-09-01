@@ -262,3 +262,39 @@ body.has-announce .store-main { padding-top: 8.2rem; }
 .page-body p { margin-bottom: 0.9rem; color: var(--ink-soft); font-size: 0.95rem; }
 
 .filter-row .filter-btn.coll { border-style: dashed; }
+
+/* ============================================================
+   Phase B4 — reviews & ratings
+   ============================================================ */
+.reviews { margin-top: 4rem; max-width: 760px; }
+.reviews .stars { color: var(--gold-ink); letter-spacing: 0.1em; }
+.rev-summary { display: flex; gap: 2.4rem; align-items: center; margin: 1.2rem 0 1.8rem; flex-wrap: wrap; }
+.rev-score .big { font-family: var(--serif); font-size: 2.6rem; line-height: 1; }
+.rev-score .muted, .reviews .muted { color: var(--ink-soft); font-size: 0.85rem; }
+.rev-bars { flex: 1; min-width: 220px; display: grid; gap: 0.3rem; }
+.rev-bar-row { display: grid; grid-template-columns: 2.2rem 1fr 2rem; gap: 0.6rem; align-items: center; font-family: var(--mono); font-size: 0.68rem; color: var(--ink-soft); }
+.rev-bar-row .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.rev-bar-row .bar i { display: block; height: 100%; background: var(--gold-ink); }
+.review-card { border-top: 1px solid var(--line); padding: 1.1rem 0; }
+.review-card .rev-head { display: flex; gap: 0.8rem; align-items: baseline; margin-bottom: 0.4rem; }
+.review-card p { color: var(--ink-soft); font-size: 0.92rem; margin: 0.3rem 0 0.5rem; }
+.rev-meta { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); }
+.rev-meta .verified { color: var(--gold-ink); }
+.rev-reply { margin-top: 0.7rem; padding: 0.7rem 0.9rem; background: var(--paper); border-left: 2px solid var(--gold-ink); font-size: 0.88rem; color: var(--ink-soft); }
+.rev-reply b { display: block; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.16em; margin-bottom: 0.2rem; color: var(--ink); }
+#revForm { border: 1px solid var(--line); padding: 1.2rem; margin-bottom: 1.6rem; background: var(--white); }
+.rev-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+.rev-form-grid .wide { grid-column: 1 / -1; }
+.rev-form-grid label { display: grid; gap: 0.3rem; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+.rev-form-grid input, .rev-form-grid select, .rev-form-grid textarea {
+  border: 1px solid var(--line); padding: 0.6rem 0.8rem; font-family: var(--sans); font-size: 16px;
+  background: var(--paper); outline: none; width: 100%;
+}
+.rev-form-grid input:focus, .rev-form-grid select:focus, .rev-form-grid textarea:focus { border-color: var(--gold); }
+.rev-form-foot { margin-top: 1rem; display: flex; gap: 1rem; align-items: center; }
+@media (max-width: 600px) { .rev-form-grid { grid-template-columns: 1fr; } }
+
+/* rating line on shop cards */
+.card-rating { margin-top: 0.2rem; font-size: 0.78rem; }
+.card-rating .stars { color: var(--gold-ink); letter-spacing: 0.08em; }
+.card-rating .n { color: var(--ink-soft); font-size: 0.72rem; }

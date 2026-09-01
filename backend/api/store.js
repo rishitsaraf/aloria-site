@@ -21,6 +21,7 @@ const adminInventory = require("../store/adminInventory");
 const adminOps = require("../store/adminOps");
 const adminContent = require("../store/adminContent");
 const adminStaff = require("../store/adminStaff");
+const reviews = require("../store/reviews");
 const seed = require("../store/seed");
 const cron = require("../store/cron");
 const sitemap = require("../store/sitemap");
@@ -54,6 +55,8 @@ const ROUTES = [
   // catalog & site content (public)
   ["GET", "products", catalog.list],
   ["GET", "products/:slug", catalog.detail],
+  ["GET", "products/:slug/reviews", reviews.listForProduct],
+  ["POST", "products/:slug/reviews", reviews.create],
   ["GET", "content", content.content],
   ["GET", "pages/:slug", content.pageDetail],
 
@@ -116,6 +119,9 @@ const ROUTES = [
   ["POST", "admin/discounts", staff(admin.createDiscount)],
   ["DELETE", "admin/discounts/:code", staff(admin.deleteDiscount)],
   ["GET", "admin/waitlist", staff(admin.listWaitlist)],
+  ["GET", "admin/reviews", staff(reviews.adminList)],
+  ["PATCH", "admin/reviews/:id", staff(reviews.adminUpdate)],
+  ["DELETE", "admin/reviews/:id", staff(reviews.adminDelete)],
   ["POST", "admin/waitlist/broadcast", staff(adminOps.broadcastWaitlist, "admin")],
 
   // ---- CMS: content, pages, collections
