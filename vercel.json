@@ -5,7 +5,8 @@
   "cleanUrls": true,
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/store/sitemap" },
-    { "source": "/robots.txt", "destination": "/api/store/robots" }
+    { "source": "/robots.txt", "destination": "/api/store/robots" },
+    { "source": "/shop/product", "destination": "/api/pdp" }
   ],
   "crons": [
     { "path": "/api/store/cron/sweep", "schedule": "0 * * * *" }

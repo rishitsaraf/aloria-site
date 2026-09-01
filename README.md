@@ -13,7 +13,7 @@ Postgres. No framework, no build step.
 | Pages | `/p?slug=…` | CMS-authored static pages (shipping, returns, privacy…) linked in the footer |
 | Account | `/account` | Customer sign-in / registration / password reset / 2FA-aware login / order history |
 | **CMS** | `/admin` | Atelier Console — see below |
-| SEO | `/sitemap.xml`, `/robots.txt` | Generated from the live catalog; PDPs carry schema.org Product JSON-LD |
+| SEO | `/sitemap.xml`, `/robots.txt`, `/shop/product` | Sitemap/robots generated from the live catalog; the product page is server-rendered with title/canonical/OG plus schema.org Product JSON-LD (AggregateRating, OfferShippingDetails, MerchantReturnPolicy) and a BreadcrumbList |
 | Brand hub | `/hub` | Private brand book (still gated by the shared password) |
 
 ## The Atelier Console (CMS)

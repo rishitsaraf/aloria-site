@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 8080;
 const storeHandler = require("../backend/api/store.js");
 const authHandler = require("../backend/api/auth.js");
 const waitlistHandler = require("../backend/api/waitlist.js");
+const pdpHandler = require("../backend/store/seoPage.js").productPage;
 
 const MIME = {
   ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript",
@@ -59,7 +60,8 @@ http.createServer((req, res) => {
     if (req.url === "/sitemap.xml") req.url = "/api/store/sitemap";
     if (req.url === "/robots.txt") req.url = "/api/store/robots";
     try {
-      if (req.url.startsWith("/api/store")) await storeHandler(req, res);
+      if (req.url.startsWith("/shop/product?") || req.url === "/shop/product") await pdpHandler(req, res);
+      else if (req.url.startsWith("/api/store")) await storeHandler(req, res);
       else if (req.url.startsWith("/api/auth")) await authHandler(req, res);
       else if (req.url.startsWith("/api/waitlist")) await waitlistHandler(req, res);
       else serveStatic(req, res);

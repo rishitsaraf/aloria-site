@@ -183,8 +183,11 @@ async function init() {
   $("qtyPlus").onclick = () => { $("qtyInput").value = Math.min(10, (parseInt($("qtyInput").value, 10) || 1) + 1); };
 }
 
-/* Meta description + schema.org Product markup (crawlers render JS). */
+/* Meta description + schema.org Product markup — fallback for local/static
+   serving; production serves these from the server (backend/store/seoPage.js)
+   and this detects the injected JSON-LD and skips. */
 function injectSeo() {
+  if (document.querySelector('script[type="application/ld+json"]')) return;
   const meta = document.createElement("meta");
   meta.name = "description";
   meta.content = product.seoDescription || `${product.subtitle}. ${product.description}`.slice(0, 155);
