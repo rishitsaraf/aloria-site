@@ -16,6 +16,7 @@ const DEFAULTS = {
   "abandoned.third_reminder_hours": () => 72,   // measured from the 2nd send; 0 = off
   "abandoned.incentive_code": () => "",         // discount code offered from email 2 on
   "emails.review_request_days": () => 5, // days after purchase; 0 = off
+  "returns.window_days": () => 30,       // return window after purchase; 0 disables the portal
   "tax.default_pct": () => 0,
   "tax.by_country": () => ({}),               // {"GB": 20, "DE": 19}
   "content.announcement": () => ({ text: "", enabled: false }),

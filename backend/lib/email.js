@@ -202,6 +202,40 @@ async function sendStockAlert(to, row) {
   return send({ to, ...buildStockAlert(row) });
 }
 
+const RMA_COPY = {
+  requested: {
+    subject: (rma) => `Return ${rma.rma_number} received`,
+    body: () => "We've received your return request and will review it within one working day. You'll hear from us at this address.",
+  },
+  approved: {
+    subject: (rma) => `Return ${rma.rma_number} approved`,
+    body: () => "Your return is approved. Pack the pieces in their original pouch, include a note with your RMA number, and post them to the address in your order confirmation. We'll refund as soon as they arrive back at the atelier.",
+  },
+  rejected: {
+    subject: (rma) => `Return ${rma.rma_number} — update`,
+    body: (rma) => rma.admin_note || "We couldn't approve this return. Reply to this email if you'd like to talk it through.",
+  },
+  refunded: {
+    subject: (rma) => `Return ${rma.rma_number} refunded`,
+    body: () => "Your pieces made it back and the refund is on its way to your original payment method. Depending on your bank it can take 5–10 working days to appear.",
+  },
+};
+
+function buildRmaUpdate(rma, order) {
+  const copy = RMA_COPY[rma.status] || RMA_COPY.requested;
+  const items = (rma.items || []).map((i) =>
+    `<li style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.9;">${escapeHtml(i.title)}${i.label ? ` — ${escapeHtml(i.label)}` : ""} × ${i.qty}</li>`).join("");
+  const html = layout(copy.subject(rma), `
+    <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">${escapeHtml(copy.body(rma))}</p>
+    <p style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#55504a;">Order ${escapeHtml(order.number)} · ${escapeHtml(rma.rma_number)}</p>
+    <ul style="padding-left:18px;margin:10px 0;">${items}</ul>`);
+  return { subject: copy.subject(rma), html, text: `${copy.subject(rma)}: ${copy.body(rma)} (order ${order.number})` };
+}
+
+async function sendRmaUpdate(rma, order) {
+  return send({ to: rma.email, ...buildRmaUpdate(rma, order) });
+}
+
 /* Broadcast/announcement wrapper — plain message in the brand frame. */
 function buildAnnouncement(subject, message) {
   const paragraphs = String(message).split(/\n\s*\n/).map((p) =>
@@ -212,7 +246,7 @@ function buildAnnouncement(subject, message) {
 module.exports = {
   send, siteUrl,
   sendOrderConfirmation, sendCartRecovery, sendPasswordReset, sendShippingConfirmation, sendStockAlert,
-  sendWelcome, sendReviewRequest,
+  sendWelcome, sendReviewRequest, sendRmaUpdate,
   buildOrderConfirmation, buildCartRecovery, buildPasswordReset, buildShippingConfirmation, buildAnnouncement,
   buildStockAlert, buildWelcome, buildReviewRequest,
 };

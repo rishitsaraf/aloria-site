@@ -607,6 +607,68 @@ async function viewManualOrder() {
   });
 }
 
+/* ================= Returns (RMA queue) ================= */
+
+async function viewReturns() {
+  const state = viewReturns.state || (viewReturns.state = { status: "requested" });
+  const params = state.status === "all" ? "" : `?status=${state.status}`;
+  const { returns, counts } = await Store.api(`admin/returns${params}`);
+  const chip = (id, label) =>
+    `<button class="filter-btn ${state.status === id ? "active" : ""}" data-rtf="${id}" type="button" style="border-radius:100px">${label}</button>`;
+  const NEXT = {
+    requested: [["approved", "Approve"], ["rejected", "Reject"]],
+    approved: [["received", "Mark received"]],
+    received: [["refunded", "Refund"]],
+    rejected: [],
+    refunded: [],
+  };
+  $m().innerHTML = `
+    <div class="admin-head"><h1 class="serif">Returns</h1>
+      <span class="mono" style="font-size:0.62rem;color:var(--ink-soft)">${counts.requested || 0} awaiting review</span></div>
+    <div class="panel">
+      <div class="panel-head"><div class="toolbar">
+        ${chip("requested", `Requested (${counts.requested || 0})`)}
+        ${chip("approved", `Approved (${counts.approved || 0})`)}
+        ${chip("received", `Received (${counts.received || 0})`)}
+        ${chip("refunded", `Refunded (${counts.refunded || 0})`)}
+        ${chip("rejected", `Rejected (${counts.rejected || 0})`)}
+        ${chip("all", "All")}
+      </div></div>
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>RMA</th><th>Order</th><th>Customer</th><th>Pieces</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+        <tbody>${returns.map((x) => `
+          <tr>
+            <td class="mono-cell">${esc(x.rma)}<div class="mono" style="font-size:0.58rem;color:var(--ink-soft)">${dt(x.createdAt)}</div></td>
+            <td><a href="#/orders/${x.orderId}">${esc(x.orderNumber)}</a><div class="mono" style="font-size:0.58rem;color:var(--ink-soft)">${esc(x.orderStatus)} · ${fmt(x.totalCents, x.currency)}</div></td>
+            <td class="mono-cell">${esc(x.email)}</td>
+            <td style="max-width:220px">${(x.items || []).map((i) => `${esc(i.title)} × ${i.qty}`).join("<br>")}</td>
+            <td style="max-width:260px;color:var(--ink-soft)">${esc(x.reason)}
+              <div style="margin-top:0.4rem;display:flex;gap:0.35rem">
+                <input data-rt-note="${x.id}" placeholder="Internal / rejection note…" value="${esc(x.adminNote)}" style="flex:1;min-width:120px">
+              </div></td>
+            <td>${pill(x.status)}</td>
+            <td><div style="display:flex;gap:0.3rem;flex-wrap:wrap">
+              ${(NEXT[x.status] || []).map(([to, label]) =>
+                `<button class="btn ${to === "refunded" ? "" : "ghost "}small" data-rt-set="${to}" data-rt="${x.id}" type="button">${label}</button>`).join("")}
+            </div></td>
+          </tr>`).join("") || '<tr><td colspan="7" style="color:var(--ink-soft)">Nothing here</td></tr>'}
+        </tbody></table></div>
+    </div>`;
+  document.querySelectorAll("[data-rtf]").forEach((b) => {
+    b.onclick = () => { state.status = b.dataset.rtf; viewReturns(); };
+  });
+  document.querySelectorAll("[data-rt-set]").forEach((b) => {
+    b.onclick = () => withBusy(b, async () => {
+      const note = document.querySelector(`[data-rt-note="${b.dataset.rt}"]`).value;
+      try {
+        await Store.api(`admin/returns/${b.dataset.rt}`, { method: "PATCH", body: { status: b.dataset.rtSet, adminNote: note } });
+        Store.toast(`Return ${b.dataset.rtSet}`);
+        viewReturns();
+      } catch (e) { Store.toast(e.message); }
+    });
+  });
+}
+
 /* ================= Inbox (contact messages) ================= */
 
 async function viewInbox() {
@@ -735,6 +797,7 @@ async function viewReviews() {
 window.EXT_ROUTES = [
   [/^#\/reviews$/, viewReviews],
   [/^#\/inbox$/, viewInbox],
+  [/^#\/returns$/, viewReturns],
   [/^#\/inventory$/, viewInventory],
   [/^#\/inventory\/movements$/, viewMovements],
   [/^#\/collections$/, viewCollections],

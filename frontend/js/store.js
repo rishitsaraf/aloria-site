@@ -154,7 +154,7 @@ const Store = {
       if (links) {
         links.innerHTML = (c.pages || []).map((p) =>
           `<a href="/p?slug=${encodeURIComponent(p.slug)}">${Store.esc(p.title)}</a>`).join("") +
-          '<a href="/wishlist">Wishlist</a><a href="/contact">Contact</a>';
+          '<a href="/wishlist">Wishlist</a><a href="/returns">Returns</a><a href="/contact">Contact</a>';
       }
     });
   },

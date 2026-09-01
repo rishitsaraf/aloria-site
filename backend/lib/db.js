@@ -299,6 +299,22 @@ CREATE TABLE IF NOT EXISTS stock_alerts (
 );
 CREATE INDEX IF NOT EXISTS idx_stock_alerts_open ON stock_alerts(variant_id) WHERE notified_at IS NULL;
 
+CREATE SEQUENCE IF NOT EXISTS rma_number_seq START 501;
+
+CREATE TABLE IF NOT EXISTS returns (
+  id         BIGSERIAL PRIMARY KEY,
+  rma_number TEXT NOT NULL UNIQUE,             -- RMA-501
+  order_id   BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  email      TEXT NOT NULL,
+  status     TEXT NOT NULL DEFAULT 'requested',-- requested | approved | rejected | received | refunded
+  reason     TEXT NOT NULL DEFAULT '',
+  items      JSONB NOT NULL DEFAULT '[]',      -- [{sku, title, qty}]
+  admin_note TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_returns_status ON returns(status, created_at);
+
 -- column additions for existing deployments (idempotent)
 ALTER TABLE products  ADD COLUMN IF NOT EXISTS video_url TEXT NOT NULL DEFAULT '';
 ALTER TABLE orders    ADD COLUMN IF NOT EXISTS payment_provider TEXT NOT NULL DEFAULT '';

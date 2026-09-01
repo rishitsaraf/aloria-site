@@ -24,6 +24,7 @@ const adminStaff = require("../store/adminStaff");
 const reviews = require("../store/reviews");
 const contact = require("../store/contact");
 const wishlist = require("../store/wishlist");
+const returns = require("../store/returns");
 const seed = require("../store/seed");
 const cron = require("../store/cron");
 const sitemap = require("../store/sitemap");
@@ -83,6 +84,8 @@ const ROUTES = [
   ["POST", "payments/webhook", checkout.webhook],
   ["GET", "orders/lookup", checkout.lookup],
   ["GET", "orders", checkout.myOrders],
+  ["GET", "returns/eligible", returns.eligible],
+  ["POST", "returns", returns.request],
 
   // cron & seo
   ["GET", "cron/sweep", cron.sweep],
@@ -132,6 +135,8 @@ const ROUTES = [
   ["GET", "admin/reviews", staff(reviews.adminList)],
   ["PATCH", "admin/reviews/:id", staff(reviews.adminUpdate)],
   ["DELETE", "admin/reviews/:id", staff(reviews.adminDelete)],
+  ["GET", "admin/returns", staff(returns.adminList)],
+  ["PATCH", "admin/returns/:id", staff(returns.adminUpdate)],
   ["GET", "admin/contact", staff(contact.adminList)],
   ["PATCH", "admin/contact/:id", staff(contact.adminUpdate)],
   ["DELETE", "admin/contact/:id", staff(contact.adminDelete)],

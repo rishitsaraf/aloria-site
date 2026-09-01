@@ -355,3 +355,12 @@ body.has-announce .store-main { padding-top: 8.2rem; }
 .stock-alert .alert-form { display: flex; gap: 0.5rem; }
 .stock-alert input { flex: 1; border: 1px solid var(--line); padding: 0.55rem 0.8rem; font-family: var(--sans); font-size: 16px; background: var(--paper); outline: none; min-width: 0; }
 .stock-alert input:focus { border-color: var(--gold); }
+
+/* ============================================================
+   Phase D2 — returns portal
+   ============================================================ */
+.rma-status { border: 1px solid var(--line); background: var(--white); padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; font-size: 0.9rem; }
+.rma-status b { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; color: var(--gold-ink); }
+.ro-items { display: grid; gap: 0.5rem; margin-top: 1rem; }
+.ro-item { display: grid; grid-template-columns: auto 1fr 74px; gap: 0.7rem; align-items: center; border: 1px solid var(--line); background: var(--white); padding: 0.7rem 0.9rem; font-size: 0.9rem; }
+.ro-item input[type="number"] { border: 1px solid var(--line); padding: 0.35rem 0.5rem; font-family: var(--sans); font-size: 16px; background: var(--paper); width: 100%; }
