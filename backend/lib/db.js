@@ -282,6 +282,23 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS wishlists (
+  user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, product_id)
+);
+
+CREATE TABLE IF NOT EXISTS stock_alerts (
+  id          BIGSERIAL PRIMARY KEY,
+  variant_id  BIGINT NOT NULL REFERENCES variants(id) ON DELETE CASCADE,
+  email       TEXT NOT NULL,
+  notified_at TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (variant_id, email)
+);
+CREATE INDEX IF NOT EXISTS idx_stock_alerts_open ON stock_alerts(variant_id) WHERE notified_at IS NULL;
+
 -- column additions for existing deployments (idempotent)
 ALTER TABLE products  ADD COLUMN IF NOT EXISTS video_url TEXT NOT NULL DEFAULT '';
 ALTER TABLE orders    ADD COLUMN IF NOT EXISTS payment_provider TEXT NOT NULL DEFAULT '';

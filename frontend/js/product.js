@@ -65,6 +65,7 @@ function syncState() {
 
   if (v && v.image) setMainImage(v.image);
 
+  $("alertBox").hidden = true;
   if (!complete) {
     const min = Math.min(...product.variants.map((x) => x.priceCents));
     const max = Math.max(...product.variants.map((x) => x.priceCents));
@@ -86,8 +87,10 @@ function syncState() {
   }
   price.textContent = Store.money(v.priceCents, product.currency);
   compare.textContent = v.compareAtCents ? Store.money(v.compareAtCents, product.currency) : "";
+  $("alertBox").hidden = v.available;
   if (!v.available) {
-    note.textContent = "Sold out — check back soon";
+    $("alertBox").dataset.variantId = v.id;
+    note.textContent = "Sold out";
     note.className = "stock-note low";
     btn.disabled = true;
     btn.textContent = "Sold out";
@@ -167,6 +170,8 @@ async function init() {
 
   loadReviews();
   initZoom();
+  initWishlist();
+  initStockAlert();
   if (product.videoUrl) {
     $("pdpVideo").hidden = false;
     $("pdpVideoEl").src = product.videoUrl;
@@ -246,6 +251,58 @@ function initZoom() {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); wrap.classList.toggle("zoomed"); }
     if (e.key === "Escape") wrap.classList.remove("zoomed");
   });
+}
+
+/* Wishlist heart — server-side for signed-in customers. */
+function initWishlist() {
+  const btn = $("wishBtn");
+  const paint = (saved) => {
+    btn.textContent = saved ? "♥" : "♡";
+    btn.classList.toggle("saved", saved);
+    btn.setAttribute("aria-pressed", saved ? "true" : "false");
+  };
+  // only ask for the wishlist when signed in — avoids a guaranteed 401 for guests
+  Store.api("auth/me").then(({ user }) => {
+    if (!user) return;
+    Store.api("wishlist").then(({ items }) => {
+      paint(items.some((i) => i.slug === product.slug));
+    }).catch(() => {});
+  }).catch(() => {});
+  btn.onclick = async () => {
+    try {
+      const r = await Store.api("wishlist/toggle", { method: "POST", body: { slug: product.slug } });
+      paint(r.saved);
+      Store.toast(r.saved ? "Saved to your wishlist" : "Removed from your wishlist",
+        r.saved ? { href: "/wishlist", label: "View →" } : undefined);
+    } catch (e) {
+      if (e.status === 401) Store.toast("Sign in to save pieces", { href: "/account", label: "Sign in →" });
+      else Store.toast(e.message);
+    }
+  };
+}
+
+/* Back-in-stock alert for the selected sold-out combination. */
+function initStockAlert() {
+  Store.api("auth/me").then(({ user }) => {
+    if (user) $("alertEmail").value = user.email;
+  }).catch(() => {});
+  $("alertBtn").onclick = async () => {
+    const msg = $("alertMsg");
+    $("alertBtn").disabled = true;
+    try {
+      await Store.api("stock-alerts", { method: "POST", body: {
+        variantId: Number($("alertBox").dataset.variantId),
+        email: $("alertEmail").value || undefined,
+      } });
+      msg.className = "form-msg ok";
+      msg.textContent = "Noted — we'll email you when it's back.";
+    } catch (e) {
+      msg.className = "form-msg err";
+      msg.textContent = e.message;
+    } finally {
+      $("alertBtn").disabled = false;
+    }
+  };
 }
 
 /* ---------------- Reviews ---------------- */

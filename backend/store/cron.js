@@ -14,6 +14,7 @@ const settings = require("../lib/settings");
 const emailLib = require("../lib/email");
 const cartLib = require("./cartLib");
 const checkout = require("./checkout");
+const wishlist = require("./wishlist");
 const { json, unauthorized } = require("../lib/http");
 
 const ONLINE_PENDING_EXPIRE_MIN = 120;
@@ -126,8 +127,9 @@ async function sweep(req, res) {
   const reminders = await sendReminderLadder();
   const orders = await expireStalePendingOrders();
   const published = await publishScheduled();
+  const alerts = await wishlist.sendStockAlerts();
   await authLib.pruneSessions();
-  json(res, 200, { ok: true, ...carts, ...reminders, ...orders, ...published });
+  json(res, 200, { ok: true, ...carts, ...reminders, ...orders, ...published, ...alerts });
 }
 
 module.exports = { sweep };

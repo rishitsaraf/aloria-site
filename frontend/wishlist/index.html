@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wishlist — ALORIA</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500&family=Space+Mono&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/shop.css">
+</head>
+<body>
+
+<main class="store-main">
+  <div class="store-head">
+    <div>
+      <div class="eyebrow">Saved pieces</div>
+      <h1>Wishlist</h1>
+    </div>
+    <div class="count" id="wishCount"></div>
+  </div>
+  <div class="product-grid" id="wishGrid"></div>
+  <div class="empty-state" id="wishEmpty" hidden>
+    <div class="big" id="wishEmptyTitle">Nothing saved yet</div>
+    <p id="wishEmptyBody">Tap the ♡ on any piece to keep it here. <a href="/shop">Browse the collection →</a></p>
+  </div>
+</main>
+
+<script src="/js/store.js"></script>
+<script>
+  Store.nav("");
+  Store.footer();
+  async function loadWishlist() {
+    const grid = document.getElementById("wishGrid");
+    const empty = document.getElementById("wishEmpty");
+    try {
+      const { items } = await Store.api("wishlist");
+      document.getElementById("wishCount").textContent = items.length ? `${items.length} piece${items.length === 1 ? "" : "s"}` : "";
+      empty.hidden = items.length > 0;
+      grid.innerHTML = items.map((p) => `
+        <div class="product-card wish-card">
+          <a href="/shop/product?slug=${encodeURIComponent(p.slug)}">
+            <div class="ph">${p.image ? `<img src="${Store.esc(p.image)}" alt="${Store.esc(p.title)}" loading="lazy" decoding="async">` : ""}
+              ${!p.inStock || !p.available ? '<span class="badge soldout">Sold out</span>' : ""}</div>
+            <div class="info">
+              <h3 class="serif">${Store.esc(p.title)}</h3>
+              <div class="sub">${Store.esc(p.subtitle)}</div>
+              <div class="price">From ${Store.money(p.priceFromCents, p.currency)}</div>
+            </div>
+          </a>
+          <button class="btn ghost small wish-remove" data-slug="${Store.esc(p.slug)}" type="button">Remove</button>
+        </div>`).join("");
+      grid.querySelectorAll(".wish-remove").forEach((b) => {
+        b.onclick = async () => {
+          await Store.api("wishlist/toggle", { method: "POST", body: { slug: b.dataset.slug } }).catch(() => {});
+          loadWishlist();
+        };
+      });
+    } catch (e) {
+      empty.hidden = false;
+      if (e.status === 401) {
+        document.getElementById("wishEmptyTitle").textContent = "Sign in to see your wishlist";
+        document.getElementById("wishEmptyBody").innerHTML = '<a href="/account">Sign in →</a>';
+      } else {
+        document.getElementById("wishEmptyBody").textContent = e.message;
+      }
+    }
+  }
+  loadWishlist();
+</script>
+</body>
+</html>

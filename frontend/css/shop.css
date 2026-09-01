@@ -334,3 +334,24 @@ body.has-announce .store-main { padding-top: 8.2rem; }
 }
 .facet-row select:focus { border-color: var(--gold); }
 .facet-row #fClear { border-radius: 100px; align-self: end; }
+
+/* ============================================================
+   Phase C5 — wishlist + back-in-stock alerts
+   ============================================================ */
+.title-row { display: flex; align-items: start; gap: 0.8rem; justify-content: space-between; }
+.wish-btn {
+  border: 1px solid var(--line); background: var(--white); border-radius: 50%;
+  width: 42px; height: 42px; font-size: 1.15rem; cursor: pointer; color: var(--ink-soft);
+  flex: none; transition: color 0.2s ease, border-color 0.2s ease;
+}
+.wish-btn:hover { border-color: var(--gold); color: var(--gold-ink); }
+.wish-btn.saved { color: var(--gold-ink); border-color: var(--gold); }
+.wish-card { position: relative; }
+.wish-card > a { display: block; color: inherit; }
+.wish-card .wish-remove { width: 100%; margin-top: 0.4rem; }
+
+.stock-alert { margin-top: 0.7rem; padding: 0.9rem; border: 1px dashed var(--line); background: var(--white); }
+.stock-alert .mono-note { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 0.55rem; }
+.stock-alert .alert-form { display: flex; gap: 0.5rem; }
+.stock-alert input { flex: 1; border: 1px solid var(--line); padding: 0.55rem 0.8rem; font-family: var(--sans); font-size: 16px; background: var(--paper); outline: none; min-width: 0; }
+.stock-alert input:focus { border-color: var(--gold); }

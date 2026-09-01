@@ -26,12 +26,23 @@
     </div>
     <div class="pdp-info">
       <div class="eyebrow" id="pCat"></div>
-      <h1 id="pTitle"></h1>
+      <div class="title-row">
+        <h1 id="pTitle"></h1>
+        <button id="wishBtn" class="wish-btn" type="button" aria-pressed="false" aria-label="Save to wishlist">♡</button>
+      </div>
       <div class="sub" id="pSub"></div>
       <div class="pdp-price"><span id="pPrice"></span><span class="compare" id="pCompare"></span></div>
       <p class="pdp-desc" id="pDesc"></p>
       <div id="optGroups"></div>
       <div class="stock-note" id="stockNote" aria-live="polite"></div>
+      <div class="stock-alert" id="alertBox" hidden>
+        <div class="mono-note">Sold out — we can email you the moment it returns.</div>
+        <div class="alert-form">
+          <input id="alertEmail" type="email" maxlength="254" placeholder="you@email.com" aria-label="Email for restock alert">
+          <button class="btn ghost" id="alertBtn" type="button">Notify me</button>
+        </div>
+        <span class="form-msg" id="alertMsg" aria-live="polite"></span>
+      </div>
       <div class="qty-row">
         <div class="qty-box">
           <button type="button" id="qtyMinus" aria-label="Decrease quantity">−</button>

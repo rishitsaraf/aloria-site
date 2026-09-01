@@ -145,6 +145,24 @@ async function sendShippingConfirmation(order, items) {
   return send({ to: order.email, ...buildShippingConfirmation(order, items) });
 }
 
+function buildStockAlert(row) {
+  const label = Object.values(row.options || {}).join(" · ");
+  const link = siteUrl(`/shop/product?slug=${encodeURIComponent(row.slug)}`);
+  const html = layout(`${escapeHtml(row.title)} is back`, `
+    <p style="font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;">
+      The piece you asked us to watch — <b>${escapeHtml(row.title)}</b>${label ? ` (${escapeHtml(label)})` : ""} —
+      is back in stock. Pieces like this tend not to wait around.
+    </p>
+    <p style="text-align:center;margin:26px 0 6px;">
+      <a href="${link}" style="background:#b08d3e;color:#ffffff;text-decoration:none;padding:12px 28px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;">Claim yours</a>
+    </p>`);
+  return { subject: `Back in stock — ${row.title}`, html, text: `${row.title}${label ? ` (${label})` : ""} is back in stock: ${link}` };
+}
+
+async function sendStockAlert(to, row) {
+  return send({ to, ...buildStockAlert(row) });
+}
+
 /* Broadcast/announcement wrapper — plain message in the brand frame. */
 function buildAnnouncement(subject, message) {
   const paragraphs = String(message).split(/\n\s*\n/).map((p) =>
@@ -154,6 +172,6 @@ function buildAnnouncement(subject, message) {
 
 module.exports = {
   send, siteUrl,
-  sendOrderConfirmation, sendCartRecovery, sendPasswordReset, sendShippingConfirmation,
-  buildOrderConfirmation, buildCartRecovery, buildPasswordReset, buildShippingConfirmation, buildAnnouncement,
+  sendOrderConfirmation, sendCartRecovery, sendPasswordReset, sendShippingConfirmation, sendStockAlert,
+  buildOrderConfirmation, buildCartRecovery, buildPasswordReset, buildShippingConfirmation, buildAnnouncement, buildStockAlert,
 };
