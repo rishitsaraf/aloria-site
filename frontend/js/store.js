@@ -118,6 +118,15 @@ const Store = {
     const mainEl = document.querySelector("main");
     if (mainEl && !mainEl.id) mainEl.id = "main";
     Store.content().then((c) => {
+      // privacy-friendly analytics — only when a Plausible domain is configured
+      const pd = c.integrations && c.integrations.plausibleDomain;
+      if (pd && !document.querySelector("script[data-domain]")) {
+        const s = document.createElement("script");
+        s.defer = true;
+        s.dataset.domain = pd;
+        s.src = "https://plausible.io/js/script.js";
+        document.head.appendChild(s);
+      }
       if (c.announcement && c.announcement.enabled && c.announcement.text) {
         const bar = document.createElement("div");
         bar.className = "announce-bar";

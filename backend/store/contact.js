@@ -3,6 +3,7 @@
 
 const db = require("../lib/db");
 const emailLib = require("../lib/email");
+const captcha = require("../lib/captcha");
 const {
   json, notFound, cleanEmail, cleanInt, cleanString, rateLimit, clientIp,
 } = require("../lib/http");
@@ -10,6 +11,7 @@ const {
 async function submit(req, res) {
   await rateLimit(`contact:${clientIp(req)}`, 5, 3600);
   const body = req.body || {};
+  await captcha.assertHuman(body.turnstileToken, clientIp(req)); // no-op unless configured
   const name = cleanString(body.name, { name: "name", max: 80, required: true });
   const email = cleanEmail(body.email);
   const subject = cleanString(body.subject, { name: "subject", max: 140 });

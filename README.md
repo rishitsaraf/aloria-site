@@ -73,6 +73,10 @@ vercel.json          cleanUrls, hourly cron sweep, security headers
 | `CRON_SECRET` | recommended | Protects `/api/store/cron/sweep`; Vercel sends it automatically as a Bearer token. |
 | `ALORIA_PASSWORD` | yes (hub) | Shared password for the private brand hub (unchanged). |
 | `ABANDONED_AFTER_MINUTES` | optional | Minutes of inactivity before a bag counts as abandoned (default 120). |
+| `CONTACT_EMAIL` | optional | Where /contact submissions are forwarded (falls back to `ADMIN_EMAIL`; the CMS Inbox always keeps a copy). |
+| `PLAUSIBLE_DOMAIN` | optional | Set to your domain to turn on privacy-friendly Plausible analytics on the storefront. Off until set. |
+| `SENTRY_DSN` | optional | Forwards unhandled API errors to Sentry (lightweight, no SDK). Off until set. |
+| `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` | optional | Cloudflare Turnstile on contact + registration. Off until set; fails open if the verify service is unreachable. |
 | `FREE_SHIPPING_CENTS` / `SHIPPING_FLAT_CENTS` | optional | Shipping rules (defaults: free ≥ $75, else $8). |
 
 ## First-run checklist
@@ -123,9 +127,22 @@ vercel.json          cleanUrls, hourly cron sweep, security headers
 
 ```bash
 npm install
-DATABASE_URL=postgres://… ADMIN_EMAIL=you@x.com ADMIN_PASSWORD=… node scripts/dev-server.js
+DATABASE_URL=postgres://… ADMIN_EMAIL=you@x.com ADMIN_PASSWORD=… npm run dev
 # open http://localhost:8080/shop  (hub password check falls back to client-side locally)
 ```
+
+## Tests & CI
+
+Three suites live in `tests/` and run on every push via GitHub Actions
+(`.github/workflows/ci.yml`, Postgres 16 service + Playwright Chromium):
+
+```bash
+# needs an EMPTY local Postgres (smoke seeds it), then runs all three in order
+npm test          # = scripts/run-tests.sh: API smoke → storefront walk → CMS audit
+npm run test:smoke
+```
+
+`/api/store/health` reports `{ok, db, paymentProvider}` (200/503) for uptime monitors.
 
 ## Brand hub (unchanged)
 

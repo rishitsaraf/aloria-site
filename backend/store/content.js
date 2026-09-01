@@ -27,6 +27,10 @@ async function content(req, res) {
     hero,
     tiles,
     shipping: { flatCents: shipFlat, freeThresholdCents: shipFree },
+    integrations: {
+      plausibleDomain: process.env.PLAUSIBLE_DOMAIN || "",   // analytics: set to enable
+      turnstileSiteKey: require("../lib/captcha").siteKey(), // captcha: set to enable
+    },
     collections: collections.rows,
     pages: pages.rows,
   });

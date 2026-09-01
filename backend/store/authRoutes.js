@@ -6,12 +6,14 @@ const db = require("../lib/db");
 const auth = require("../lib/auth");
 const emailLib = require("../lib/email");
 const totp = require("../lib/totp");
+const captcha = require("../lib/captcha");
 const { json, badRequest, cleanEmail, cleanString, rateLimit, clientIp, randomToken, sha256 } = require("../lib/http");
 const cartLib = require("./cartLib");
 
 async function register(req, res) {
   await rateLimit(`reg:${clientIp(req)}`, 10, 900);
   const body = req.body || {};
+  await captcha.assertHuman(body.turnstileToken, clientIp(req)); // no-op unless configured
   const email = cleanEmail(body.email);
   const name = cleanString(body.name, { name: "Name", max: 120 });
   const password = String(body.password || "");

@@ -25,6 +25,8 @@ const reviews = require("../store/reviews");
 const contact = require("../store/contact");
 const wishlist = require("../store/wishlist");
 const returns = require("../store/returns");
+const healthMod = require("../store/health");
+const observe = require("../lib/observe");
 const seed = require("../store/seed");
 const cron = require("../store/cron");
 const sitemap = require("../store/sitemap");
@@ -87,7 +89,8 @@ const ROUTES = [
   ["GET", "returns/eligible", returns.eligible],
   ["POST", "returns", returns.request],
 
-  // cron & seo
+  // health, cron & seo
+  ["GET", "health", healthMod.health],
   ["GET", "cron/sweep", cron.sweep],
   ["GET", "sitemap", sitemap.sitemap],
   ["GET", "robots", sitemap.robots],
@@ -188,7 +191,7 @@ module.exports = async (req, res) => {
     if (err instanceof HttpError || err.expose) {
       json(res, err.statusCode || 400, { ok: false, error: err.message, ...(err.extra || {}) });
     } else {
-      console.error(`[store] ${req.method} ${req.url} →`, err);
+      observe.captureError(err, { where: `${req.method} ${req.url}` });
       json(res, 500, { ok: false, error: "Something went wrong on our side — please try again" });
     }
   }
